@@ -212,8 +212,6 @@ export interface TrajectoryPoint {
   time: number
   /** Posicion horizontal en porcentaje del dominio. */
   left: number
-  /** Diametro del nodo en px. */
-  size: number
 }
 
 /** Ancho del eje en pixeles, o fraccion si la caja no se ha medido aun. */
@@ -228,13 +226,75 @@ export interface TrajectoryScale {
   /** Posicion horizontal de cada inicio de año, en porcentaje. */
   yearMarks: { year: number; left: number }[]
   points: TrajectoryPoint[]
-  /** Horas maximas, para normalizar el diametro de los nodos. */
-  maxHours: number
+  /** Suma de horas de todos los certificados, para la ficha en reposo. */
+  totalHours: number
 }
 
-/** Diametro minimo y maximo de un nodo. */
-const NODE_MIN = 10
-const NODE_MAX = 40
+/**
+ * Diametro de un punto del eje. Fijo a proposito: antes era proporcional a la raiz
+ * cuadrada de las horas, y no comunicaba nada. Nadie lee "450 h" en un circulo de
+ * 40px, y un unico punto cuatro veces mayor que los demas rompe el ritmo de la
+ * fila y parece un error de dibujo. Las horas ahora van escritas en la ficha.
+ */
+export const DOT_SIZE = 11
+
+/**
+ * Separacion minima entre puntos, en px.
+ *
+ * Los dos PRL de 2026 estan separados por 6 dias, que a 2400px de eje son 4px:
+ * dos circulos de 11px superpuestos. Se separan al minimo y se dibuja una guia
+ * entre la posicion real y la dibujada, para que el desplazamiento se vea y la
+ * escala temporal no mienta.
+ */
+export const DOT_GAP = 16
+
+/**
+ * Posicion de un punto yajusted por la separacion minima.
+ */
+export interface DotPlacement {
+  /** Posicion horizontal en px dentro del eje. */
+  left: number
+  /** Distancia en px entre lo dibujado y la posicion real por la fecha. */
+  shift: number
+}
+
+/**
+ * Coloca los puntos del eje respetando una separacion minima.
+ *
+ * Dos pasadas: una de izquierda a derecha que empuja hacia adelante, y otra de
+ * derecha a izquierda que recoge lo que se haya salido del borde. Con una sola
+ * pasada, el ultimo punto de una pareja muy junta quedaria fuera del eje.
+ */
+export function placeDots(
+  points: TrajectoryPoint[],
+  trackWidth: number,
+): Map<string, DotPlacement> {
+  const placements = new Map<string, DotPlacement>()
+  if (trackWidth <= 0) return placements
+
+  const half = DOT_SIZE / 2
+  const limit = trackWidth - half
+  const lefts = points.map((point) => (point.left / 100) * trackWidth)
+
+  for (let i = 1; i < lefts.length; i += 1) {
+    const previous = lefts[i - 1] ?? 0
+    lefts[i] = Math.max(lefts[i] ?? 0, previous + DOT_GAP)
+  }
+  for (let i = lefts.length - 1; i >= 0; i -= 1) {
+    const next = lefts[i + 1]
+    let value = Math.min(lefts[i] ?? 0, limit)
+    if (next !== undefined) value = Math.min(value, next - DOT_GAP)
+    lefts[i] = value
+  }
+
+  for (const [index, point] of points.entries()) {
+    const trueLeft = (point.left / 100) * trackWidth
+    const left = Math.max(half, lefts[index] ?? trueLeft)
+    placements.set(point.certificate.id, { left, shift: left - trueLeft })
+  }
+
+  return placements
+}
 
 /** Anchura minima del eje en movil, con scroll horizontal. */
 export const TRACK_MIN_WIDTH = 900
@@ -263,9 +323,8 @@ function ratioOf(time: number, from: number, to: number): number {
  *
  * El dominio va del 1 de enero del año más antiguo al 31 de diciembre del más
  * reciente, de modo que las posiciones respetan el tiempo real y no el orden
- * de los elementos. El diametro de cada nodo es proporcional a la raíz
- * cuadrada de las horas: la Perception del área es fiel a la del valor, mientras
- * que un diámetro proporcional infravalora las diferencias grandes.
+ * de los elementos. Todos los puntos tienen el mismo diametro: lo que se
+ * dibuja es cuándo ocurrió cada cosa, y las horas van escritas en la ficha.
  */
 export function buildTrajectory(
   certificates: ProcessedCertificate[],
@@ -273,7 +332,7 @@ export function buildTrajectory(
   width: number,
 ): TrajectoryScale {
   if (certificates.length === 0) {
-    return { from: 0, to: 1, width, years: [], yearMarks: [], points: [], maxHours: 0 }
+    return { from: 0, to: 1, width, years: [], yearMarks: [], points: [], totalHours: 0 }
   }
 
   const years = certificates.map((c) => c.dateParts.year ?? 1970)
@@ -286,33 +345,25 @@ export function buildTrajectory(
   const to = Date.UTC(lastYear, 11, 31)
 
   const sorted = sortByDateDesc(certificates, language).slice().sort((a, b) => a.sortKey - b.sortKey)
-  const maxHours = Math.max(0, ...certificates.map((c) => c.hours))
+  const totalHours = certificates.reduce((sum, c) => sum + c.hours, 0)
 
   const points: TrajectoryPoint[] = sorted.map((certificate) => {
     const time = certificateTime(certificate)
-    const { hours } = certificate
-
-    const size =
-      hours > 0
-        ? NODE_MIN + (NODE_MAX - NODE_MIN) * Math.sqrt(hours / maxHours)
-        : NODE_MIN
 
     return {
       certificate,
       display: toDisplay(certificate, language),
       time,
       left: ratioOf(time, from, to),
-      // Se redondea a 0.1 para que el estilo en linea quede limpio.
-      size: Math.round(size * 10) / 10,
     }
   })
 
-  const yearMarks: { year: number; left: number }[] = []
+  const yearMarks: TrajectoryScale['yearMarks'] = []
   for (let year = firstYear; year <= lastYear; year += 1) {
     yearMarks.push({ year, left: ratioOf(Date.UTC(year, 0, 1), from, to) })
   }
 
-  return { from, to, width, years: yearMarks.map((mark) => mark.year), yearMarks, points, maxHours }
+  return { from, to, width, years: yearMarks.map((mark) => mark.year), yearMarks, points, totalHours }
 }
 
 /**
@@ -325,114 +376,6 @@ export function hoursBarWidth(hours: number, maxHours: number): number {
   if (hours <= 0 || maxHours <= 0) return 0
   return Math.max(3, Math.sqrt(hours / maxHours) * 100)
 }
-
-/** Rejilla de carriles para colocar las etiquetas sin solaparse. */
-export interface LabelPlacement {
-  id: string
-  /** Porcentaje horizontal del centro de la etiqueta. */
-  left: number
-  /** Carril asignado: 0 y 2 arriba, 1 y 3 abajo. */
-  lane: number
-  /** px de desplazamiento vertical desde el eje. */
-  offset: number
-  /** Ancho estimado de la etiqueta, en px. */
-  width: number
-  /** `false` si no cabe en ningun carril visible. */
-  visible: boolean
-}
-
-/** Numero de carriles: dos por encima del eje y dos por debajo. */
-const LANES = 4
-
-/** Separacion minima entre etiquetas del mismo carril, en px. */
-const LABEL_GAP = 10
-
-/** Ancho aproximado de un caracter en la mono de 12px. */
-const CHAR_WIDTH = 7.3
-
-/**
- * Coloca las etiquetas en carriles verticales para que ninguna se solape.
- *
- * Recorre los puntos en orden cronologico y va metiendo cada etiqueta en el
- * primer carril libre, con preferencia por el lado alterno (arriba, abajo) para
- * repartir. Se mide en pixeles reales del eje, no en porcentaje, porque dos
- * puntos muy juntos en porcentaje pueden quedar muy lejos o muy cerca segun el
- * ancho de la pantalla.
- */
-export function placeLabels(
-  points: TrajectoryPoint[],
-  trackWidth: number,
-  options: { laneHeight: number; axisOffset: number },
-): Map<string, LabelPlacement> {
-  const { laneHeight, axisOffset } = options
-  const placements = new Map<string, LabelPlacement>()
-  if (trackWidth <= 0) return placements
-
-  // Ultimo borde derecho ocupado por carril.
-  const laneEnd: number[] = new Array(LANES).fill(Number.NEGATIVE_INFINITY)
-
-  for (const [position, point] of points.entries()) {
-    const width = Math.min(
-      trackWidth,
-      point.display.short.length * CHAR_WIDTH + 20,
-    )
-    const center = (point.left / 100) * trackWidth
-    let left = center - width / 2
-    // Se recorta contra los bordes del eje, no del viewport: el contenedor
-    // tiene scroll horizontal, asi que un poco de recorte es aceptable.
-    left = Math.max(0, Math.min(trackWidth - width, left))
-    const right = left + width
-
-    // Se prueba primero el lado alterno y despues los demas carriles.
-    const preferred = position % 2 === 0 ? [0, 2, 1, 3] : [1, 3, 0, 2]
-
-    let chosen = -1
-    for (const lane of preferred) {
-      // Un carril libre vale -Infinity, asi que la primera etiqueta siempre
-      // cabe. El criterio es que la nueva NO solape con la anterior del carril,
-      // de ahi que se compare el borde izquierdo contra el derecho ya ocupado.
-      const occupied = laneEnd[lane] ?? Number.NEGATIVE_INFINITY
-      if (left >= occupied + LABEL_GAP) {
-        chosen = lane
-        break
-      }
-    }
-
-    if (chosen === -1) {
-      // Ningun carril libre: la etiqueta se oculta y queda solo en el tooltip.
-      placements.set(point.certificate.id, {
-        id: point.certificate.id,
-        left,
-        lane: 0,
-        offset: -axisOffset,
-        width,
-        visible: false,
-      })
-      continue
-    }
-
-    laneEnd[chosen] = right
-    const above = chosen < 2
-    const depth = chosen % 2
-
-    placements.set(point.certificate.id, {
-      id: point.certificate.id,
-      left,
-      lane: chosen,
-      offset: (above ? -1 : 1) * (axisOffset + depth * laneHeight),
-      width,
-      visible: true,
-    })
-  }
-
-  return placements
-}
-
-/** Separacion vertical desde el eje hasta la primera etiqueta, en px. */
-export const AXIS_LABEL_OFFSET = 26
-
-/** Alto de un carril de etiquetas, en px. */
-export const LANE_HEIGHT = 46
 
 /**
  * Fecha de la certificacion más reciente, en formato largo y en el idioma

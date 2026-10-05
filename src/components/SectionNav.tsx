@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type RefObject } from 'react'
 import { useLanguage } from '../context/language-context'
 import { useScrollSpy } from '../hooks/useScrollSpy'
 import { indexLabel, TRAJECTORY_ID } from '../utils/certificates'
@@ -8,17 +8,19 @@ interface SectionNavProps {
   sections: CertificateSection[]
   /** Ids presentes antes de filtrar, para atenuar los que ya no aplican. */
   allIds: string[]
+  /** Elemento que desplaza el contenido, para que el scrollspy lo siga. */
+  scroller: RefObject<HTMLElement | null>
   onJump: (id: string) => void
 }
 
 /**
- * Navegación vertical con números de índice y scrollspy.
+ * Navegación con números de índice y scrollspy.
  *
  * El número delatan en qué punto de la trayectoria se está leyendo, que es la
  * información que aporta el gráfico: no solo en qué sección, sino cuántas
  * quedan.
  */
-export function SectionNav({ sections, allIds, onJump }: SectionNavProps) {
+export function SectionNav({ sections, allIds, scroller, onJump }: SectionNavProps) {
   const { t } = useLanguage()
 
   const items = useMemo(
@@ -36,7 +38,7 @@ export function SectionNav({ sections, allIds, onJump }: SectionNavProps) {
   // Solo se observan los ids que existen ahora mismo, para que el efecto siga
   // a la búsqueda.
   const ids = useMemo(() => items.map((item) => item.id), [items])
-  const active = useScrollSpy(ids)
+  const active = useScrollSpy(ids, { scroller })
 
   return (
     <nav className="side-nav" aria-label={t.nav.label}>

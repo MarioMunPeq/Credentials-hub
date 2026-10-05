@@ -1,13 +1,12 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../context/language-context'
-import type { TranslationShape } from '../i18n/translations'
 import type { DisplayCertificate, ProcessedCertificate } from '../types/certificate'
+import { formatHours } from '../utils/dates'
 import {
-  AXIS_LABEL_OFFSET,
   buildTrajectory,
+  DOT_SIZE,
   indexLabel,
-  LANE_HEIGHT,
-  placeLabels,
+  placeDots,
   TRACK_MIN_WIDTH,
 } from '../utils/certificates'
 
@@ -19,56 +18,63 @@ interface TrajectoryProps {
   onSelect: (certificate: ProcessedCertificate) => void
 }
 
-interface TooltipState {
-  id: string
-  x: number
-  y: number
-}
+/** Atributo con el id del certificado, para leerlo desde los delegadores. */
+const ID_ATTR = 'data-certificate-id'
 
-/** Alto aproximado de una etiqueta (título + fecha), en px. */
-const LABEL_HEIGHT = 38
-
-/** Alto reservado bajo el eje para las marcas de año, en px. */
-const YEAR_HEIGHT = 30
-
-/** Alto mínimo de la zona del eje, en px. */
-const MIN_AXIS_BAND = 96
-
-/** Ancho del tooltip, para poder mantenerlo dentro del viewport. */
-const TOOLTIP_WIDTH = 260
-
-const VIEWPORT_MARGIN = 10
+/** Alto reservado a la ficha, para que la fila no salte al cambiar de contenido. */
+const CARD_MIN_HEIGHT = 104
 
 /**
- * Trayectoria: línea de tiempo horizontal a escala temporal real.
+ * Trayectoria: un eje temporal y una ficha de detalle en un sitio fijo.
  *
- * El dominio va del 1 de enero del año más antiguo al 31 de diciembre del más
- * reciente, así que dos certificados de mayo y de septiembre están a la
- * distancia que les corresponde y no a la que les toque por orden.
+ * Antes eran siete etiquetas repartidas en cuatro carriles por un algoritmo de
+ * colisiones. Era correcto —cero solapes, cero ocultas— pero su salida era el
+ * resultado de un cálculo, no una decisión de diseño: obligaba a rastrear un
+ * conector de 1px para saber a qué nodo pertenece cada rótulo, y que un cartel
+ * estuviera arriba o abajo no significaba nada porque los carriles 0 y 2 son
+ * indistinguibles para quien mira.
  *
- * El diámetro de cada nodo es proporcional a la raíz cuadrada de las horas: el
- * área es fiel al valor, mientras que un diámetro proporcional achicaría las
- * diferencias grandes.
+ * Ahora el eje solo lleva años y puntos, y toda la información de un
+ * certificado aparece en una única ficha que no se mueve. Los puntos no
+ * codifican las horas con el diámetro: nadie lee "450 h" en un círculo, y un
+ * único punto cuatro veces mayor rompía el ritmo de la fila. Las horas van
+ * escritas.
+ *
+ * Interacción:
+ * - Con puntero fino, pasar por encima de un punto rellena la ficha y el clic
+ *   salta a la entrada, como antes.
+ * - En táctil no hay hover, así que un toque rellena la ficha y el salto se hace
+ *   desde el enlace que aparece en ella.
+ * - La ficha se vacía al salir de la sección, no al salir del punto: si se
+ *   vaciara en el punto, el ratón nunca alcanzaría su propio enlace.
  */
 export function Trajectory({ certificates, matchingIds, onSelect }: TrajectoryProps) {
   const { language, t } = useLanguage()
 
   const viewportRef = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<HTMLElement>(null)
 
   const [trackWidth, setTrackWidth] = useState(0)
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+  const [viewportWidth, setViewportWidth] = useState(0)
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [hasScrolled, setHasScrolled] = useState(false)
+  /** `true` si hay ratón: decide si el clic salta o solo rellena la ficha. */
+  const finePointer = useRef(false)
 
-  // Ancho real del eje. Se mide porque las colisiones se calculan en píxeles:
-  // dos puntos muy juntos en porcentaje pueden quedar muy lejos o muy cerca
-  // según lo ancho que tenga la pantalla.
+  /*
+    Ancho real del eje. Se mide porque la separación mínima entre puntos se
+    calcula en píxeles: dos certificados separados por seis días están a 4px en
+    un eje de 2400px y a 6px en uno de 900.
+  */
   useLayoutEffect(() => {
     const element = viewportRef.current
     if (!element) return
 
     const measure = () => {
+      const available = element.clientWidth
+      setViewportWidth(available)
       // En móvil el eje conserva un ancho mínimo y el contenedor desplaza.
-      setTrackWidth(Math.max(element.clientWidth, TRACK_MIN_WIDTH))
+      setTrackWidth(Math.max(available, TRACK_MIN_WIDTH))
     }
 
     measure()
@@ -77,39 +83,18 @@ export function Trajectory({ certificates, matchingIds, onSelect }: TrajectoryPr
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    finePointer.current = window.matchMedia('(pointer: fine)').matches
+  }, [])
+
   const scale = useMemo(
     () => buildTrajectory(certificates, language, trackWidth),
     [certificates, language, trackWidth],
   )
 
-  const placements = useMemo(
-    () =>
-      placeLabels(scale.points, trackWidth, {
-        laneHeight: LANE_HEIGHT,
-        axisOffset: AXIS_LABEL_OFFSET,
-      }),
-    [scale.points, trackWidth],
-  )
+  const dots = useMemo(() => placeDots(scale.points, trackWidth), [scale.points, trackWidth])
 
-  /*
-    Geometría vertical. El eje no se sitúa al 50% sino justo debajo de la
-    etiqueta más alta que haya quedado arriba, para que una segunda fila de
-    etiquetas no se salga de la caja.
-  */
-  const geometry = useMemo(() => {
-    let above = 0
-    let below = 0
-
-    for (const placement of placements.values()) {
-      if (!placement.visible) continue
-      const needed = Math.abs(placement.offset) + LABEL_HEIGHT
-      if (placement.offset < 0) above = Math.max(above, needed)
-      else below = Math.max(below, needed)
-    }
-
-    const axisTop = Math.max(MIN_AXIS_BAND, above)
-    return { axisTop, height: axisTop + Math.max(YEAR_HEIGHT, below) }
-  }, [placements])
+  const active = activeId ? scale.points.find((p) => p.certificate.id === activeId) : undefined
 
   const onScroll = useCallback(() => {
     if (hasScrolled) return
@@ -117,17 +102,39 @@ export function Trajectory({ certificates, matchingIds, onSelect }: TrajectoryPr
     if (element && element.scrollLeft > 4) setHasScrolled(true)
   }, [hasScrolled])
 
-  const activePoint = tooltip
-    ? scale.points.find((point) => point.certificate.id === tooltip.id)
-    : undefined
-
   if (certificates.length === 0) return null
 
   const firstYear = scale.years[0] ?? 0
   const lastYear = scale.years[scale.years.length - 1] ?? 0
+  // El eje solo desborda en móvil, donde conserva un ancho mínimo. En escritorio
+  // la pista "Desliza" no tendría sentido y se oculta del todo.
+  const canScroll = trackWidth > viewportWidth + 4
+
+  /** Salta a la entrada y apaga la ficha, que ya ha cumplido su función. */
+  const goToEntry = (certificate: ProcessedCertificate) => {
+    setActiveId(null)
+    onSelect(certificate)
+  }
 
   return (
-    <section id="trajectory" className="trajectory" aria-labelledby="trajectory-title">
+    <section
+      ref={sectionRef}
+      className="trajectory"
+      id="trajectory"
+      aria-labelledby="trajectory-title"
+      onPointerLeave={() => setActiveId(null)}
+      onFocusCapture={(event) => {
+        const id = (event.target as Element).getAttribute(ID_ATTR)
+        if (id) setActiveId(id)
+      }}
+      onBlurCapture={(event) => {
+        // Solo se vacía si el foco se va de la sección entera. Con un `onBlur`
+        // en cada punto, tabular hasta el enlace de la ficha la borraría.
+        const next = event.relatedTarget as Node | null
+        if (next && sectionRef.current?.contains(next)) return
+        setActiveId(null)
+      }}
+    >
       <div className="trajectory__head">
         <span className="section__index mono" aria-hidden="true">
           {indexLabel(1)}
@@ -149,159 +156,179 @@ export function Trajectory({ certificates, matchingIds, onSelect }: TrajectoryPr
       >
         <div
           className="trajectory__track"
-          style={{
-            width: trackWidth ? `${trackWidth}px` : `${TRACK_MIN_WIDTH}px`,
-            height: `${geometry.height}px`,
-          }}
+          style={{ width: trackWidth ? `${trackWidth}px` : `${TRACK_MIN_WIDTH}px` }}
         >
-          {/* Eje temporal */}
-          <div
-            className="trajectory__axis"
-            style={{ top: `${geometry.axisTop}px` }}
-            aria-hidden="true"
-          />
+          {/* Eje temporal. La banda tiene alto fijo y las marcas cuelgan de ella. */}
+          <div className="trajectory__axis" aria-hidden="true" />
 
-          {/* Marcas de año, con tick y guía hacia arriba */}
-          {scale.yearMarks.map((mark) => (
+          {scale.yearMarks.map((mark, index) => (
             <div
               key={mark.year}
               className="trajectory__year"
-              style={{ left: `${mark.left}%`, top: `${geometry.axisTop}px` }}
+              // La primera marca cae en el 0% y la última antes del 100%, así
+              // que al centrarlas sobre su tick se saldrían del eje. Se marca el
+              // caso y el CSS las empuja hacia dentro.
+              data-edge={
+                index === 0 ? 'start' : index === scale.yearMarks.length - 1 ? 'end' : 'middle'
+              }
+              style={{ left: `${mark.left}%` }}
               aria-hidden="true"
             >
-              <span className="trajectory__guide" />
               <span className="trajectory__tick" />
               <span className="trajectory__year-label mono">{mark.year}</span>
             </div>
           ))}
 
-          {/* Nodos. El orden del array es cronológico, así que Tab los recorre
-              en ese orden sin necesidad de tabindex. */}
+          {/* Guía de separación: une la fecha real con el punto desplazado. */}
           {scale.points.map((point) => {
+            const dot = dots.get(point.certificate.id)
+            if (!dot || dot.shift < 1) return null
             const dimmed = matchingIds.size > 0 && !matchingIds.has(point.certificate.id)
             return (
-              <button
-                key={point.certificate.id}
-                type="button"
-                className={`trajectory__node${dimmed ? ' trajectory__node--dimmed' : ''}`}
+              <span
+                key={`lead-${point.certificate.id}`}
+                className={`trajectory__lead${dimmed ? ' trajectory__lead--dimmed' : ''}`}
                 style={{
-                  left: `${point.left}%`,
-                  top: `${geometry.axisTop}px`,
-                  width: `${point.size}px`,
-                  height: `${point.size}px`,
+                  left: `${((point.left / 100) * trackWidth).toFixed(1)}px`,
+                  width: `${dot.shift.toFixed(1)}px`,
                 }}
-                aria-label={buildNodeLabel(point.display, t)}
-                onClick={() => onSelect(point.certificate)}
-                onPointerEnter={(event) =>
-                  setTooltip({ id: point.certificate.id, x: event.clientX, y: event.clientY })
-                }
-                onPointerMove={(event) =>
-                  setTooltip({ id: point.certificate.id, x: event.clientX, y: event.clientY })
-                }
-                onPointerLeave={() => setTooltip(null)}
-                onFocus={(event) => {
-                  const box = event.currentTarget.getBoundingClientRect()
-                  setTooltip({
-                    id: point.certificate.id,
-                    x: box.left + box.width / 2,
-                    y: box.top,
-                  })
-                }}
-                onBlur={() => setTooltip(null)}
+                aria-hidden="true"
               />
             )
           })}
 
-          {/* Etiquetas cortas, en carriles para que no se solapen */}
+          {/* Puntos. El orden del array es cronológico, así que Tab los recorre
+              en ese orden sin necesidad de tabindex. */}
           {scale.points.map((point) => {
-            const placement = placements.get(point.certificate.id)
-            // Si no ha cabido en ningun carril, el nodo conserva su tooltip.
-            if (!placement || !placement.visible) return null
+            const dot = dots.get(point.certificate.id)
+            if (!dot) return null
+
+            const dimmed = matchingIds.size > 0 && !matchingIds.has(point.certificate.id)
+            const selected = activeId === point.certificate.id
 
             return (
-              <div
-                key={`label-${point.certificate.id}`}
-                className="trajectory__label"
+              <button
+                key={point.certificate.id}
+                type="button"
+                {...{ [ID_ATTR]: point.certificate.id }}
+                className={`trajectory__dot${dimmed ? ' trajectory__dot--dimmed' : ''}${
+                  selected ? ' trajectory__dot--selected' : ''
+                }`}
                 style={{
-                  left: `${placement.left}px`,
-                  top: `${geometry.axisTop + placement.offset}px`,
-                  width: `${placement.width}px`,
+                  left: `${dot.left.toFixed(1)}px`,
+                  width: `${DOT_SIZE}px`,
+                  height: `${DOT_SIZE}px`,
                 }}
-                aria-hidden="true"
-              >
-                <span className="trajectory__label-title">{point.display.short}</span>
-                <span className="trajectory__label-date mono">
-                  {point.display.dateLabel}
-                </span>
-              </div>
+                aria-label={buildNodeLabel(point.display, t)}
+                onPointerEnter={() => setActiveId(point.certificate.id)}
+                onFocus={() => setActiveId(point.certificate.id)}
+                onClick={() => {
+                  setActiveId(point.certificate.id)
+                  // Con ratón, el clic va directo a la ficha: la ficha ya está
+                  // llena por el hover y saltar sería saltarse el dato.
+                  if (finePointer.current) goToEntry(point.certificate)
+                }}
+              />
             )
           })}
         </div>
       </div>
 
-      <p
-        className={`trajectory__hint mono${
-          hasScrolled ? ' trajectory__hint--hidden' : ''
-        }`}
-        aria-hidden="true"
-      >
-        {t.trajectory.swipeHint}
-      </p>
+      {canScroll && (
+        <p
+          className={`trajectory__hint mono${
+            hasScrolled ? ' trajectory__hint--hidden' : ''
+          }`}
+          aria-hidden="true"
+        >
+          {t.trajectory.swipeHint}
+        </p>
+      )}
+
+      <DetailCard
+        point={active}
+        count={certificates.length}
+        totalHours={scale.totalHours}
+        onGoToEntry={goToEntry}
+      />
 
       {/* Alternativa de texto: la misma información está en las secciones. */}
       <p className="visually-hidden">{t.trajectory.alternativeText}</p>
-
-      {tooltip && activePoint && (
-        <TrajectoryTooltip display={activePoint.display} x={tooltip.x} y={tooltip.y} />
-      )}
     </section>
   )
 }
 
-/** Etiqueta accesible de un nodo: título, entidad, fecha y horas. */
-function buildNodeLabel(display: DisplayCertificate, t: TranslationShape): string {
-  const meta = [display.dateLabel, display.hoursLabel].filter(Boolean).join(', ')
-  const { title, issuer } = display.certificate
-
-  return issuer ? t.trajectory.nodeLabel(title, issuer, meta) : t.trajectory.nodeLabelShort(title, meta)
-}
-
-interface TrajectoryTooltipProps {
-  display: DisplayCertificate
-  x: number
-  y: number
+interface DetailCardProps {
+  point: { certificate: ProcessedCertificate; display: DisplayCertificate } | undefined
+  count: number
+  totalHours: number
+  onGoToEntry: (certificate: ProcessedCertificate) => void
 }
 
 /**
- * Tooltip del nodo, en `position: fixed` para que ningún `overflow` lo recorte.
- * Se ancla al borde derecho si no cabe a la derecha, y se voltea arriba si no
- * cabe debajo.
+ * Ficha de detalle, siempre en el mismo sitio.
+ *
+ * En reposo no está vacía: resume el conjunto, para que la sección tenga algo
+ * que leer de entrada y para que el hueco no parezca un fallo de maquetación.
+ * Con `aria-live` para que el cambio de contenido al mover el ratón se anuncie
+ * en un lector de pantalla; el texto no cambia de longitud entre estados, así
+ * que no interrumpe lo que se está leyendo.
  */
-function TrajectoryTooltip({ display, x, y }: TrajectoryTooltipProps) {
-  const flipped = x > window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN * 3
-  const left = Math.min(
-    Math.max(VIEWPORT_MARGIN, flipped ? x - TOOLTIP_WIDTH - 16 : x + 16),
-    window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN,
-  )
-
-  const above = y > window.innerHeight / 2
+function DetailCard({ point, count, totalHours, onGoToEntry }: DetailCardProps) {
+  const { language, t } = useLanguage()
+  // El formato de miles vive en `formatHours`, no en las traducciones: asi el
+  // separador y los decimales salen en el idioma activo sin duplicar la regla.
+  const hoursLabel = formatHours(totalHours, language)
 
   return (
-    <div
-      className="trajectory__tooltip"
-      role="presentation"
-      style={{
-        left,
-        ...(above
-          ? { bottom: window.innerHeight - y + 16 }
-          : { top: y + 18 }),
-      }}
-    >
-      <p className="trajectory__tooltip-title">{display.certificate.title}</p>
-      <p className="trajectory__tooltip-issuer">{display.certificate.issuer}</p>
-      <p className="trajectory__tooltip-meta mono">
-        {[display.dateLabel, display.hoursLabel].filter(Boolean).join(' · ')}
-      </p>
+    <div className="trajectory__card" style={{ minHeight: `${CARD_MIN_HEIGHT}px` }}>
+      <div className="trajectory__card-body" aria-live="polite">
+        {point ? (
+          <>
+            <p className="trajectory__card-meta mono">
+              {point.display.dateLabel}
+              {point.display.hoursLabel ? ` · ${point.display.hoursLabel}` : ''}
+            </p>
+            <h3 className="trajectory__card-title">{point.certificate.title}</h3>
+            <p className="trajectory__card-issuer">{point.certificate.issuer}</p>
+          </>
+        ) : (
+          <>
+            <p className="trajectory__card-meta mono">
+              {count} {t.trajectory.certificates}
+              {hoursLabel ? ` · ${hoursLabel}` : ''}
+            </p>
+            <p className="trajectory__card-hint">{t.trajectory.summaryHint}</p>
+          </>
+        )}
+      </div>
+
+      {point && (
+        <button
+          type="button"
+          {...{ [ID_ATTR]: point.certificate.id }}
+          className="trajectory__card-link"
+          onClick={() => onGoToEntry(point.certificate)}
+        >
+          {t.trajectory.goToEntry}
+          <span aria-hidden="true">→</span>
+        </button>
+      )}
     </div>
+  )
+}
+
+/**
+ * Etiqueta accesible de un punto del eje.
+ *
+ * Lleva el emisor además del título corto: el punto ya no dibuja el texto al
+ * lado, así que para quien no ve el gráfico este es el único sitio donde se
+ * menciona quién emite la credencial.
+ */
+function buildNodeLabel(display: DisplayCertificate, t: ReturnType<typeof useLanguage>['t']) {
+  return t.trajectory.nodeLabel(
+    display.short,
+    display.certificate.issuer,
+    display.dateLabel,
   )
 }

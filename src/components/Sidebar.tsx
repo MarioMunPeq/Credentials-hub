@@ -1,3 +1,4 @@
+import type { RefObject } from 'react'
 import { useLanguage } from '../context/language-context'
 import { site } from '../config/site'
 import type { ProcessedCertificate } from '../types/certificate'
@@ -17,6 +18,8 @@ interface SidebarProps {
   query: string
   onQueryChange: (query: string) => void
   resultLabel: string
+  /** Elemento que desplaza el contenido, para que el scrollspy lo siga. */
+  contentRef: RefObject<HTMLElement | null>
   onJump: (id: string) => void
 }
 
@@ -35,6 +38,7 @@ export function Sidebar({
   query,
   onQueryChange,
   resultLabel,
+  contentRef,
   onJump,
 }: SidebarProps) {
   const { language } = useLanguage()
@@ -68,7 +72,12 @@ export function Sidebar({
       </div>
 
       <div className="sidebar__nav">
-        <SectionNav sections={sections} allIds={allSectionIds} onJump={onJump} />
+        <SectionNav
+          sections={sections}
+          allIds={allSectionIds}
+          scroller={contentRef}
+          onJump={onJump}
+        />
       </div>
 
       <div className="sidebar__footer">

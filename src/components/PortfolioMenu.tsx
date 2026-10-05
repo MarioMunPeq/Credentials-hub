@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useLanguage } from '../context/language-context'
-import { describe, portfolioLinks } from '../config/links'
+import { describe, portfolioLinks, siteCount, tagOf } from '../config/links'
 import { ChevronIcon, ExternalLinkIcon } from './icons'
 
 /** Debajo de este ancho el panel deja de ser un menu y pasa a ser hoja inferior. */
@@ -208,6 +208,9 @@ export function PortfolioMenu() {
         onKeyDown={onTriggerKeyDown}
       >
         {t.header.portfolios}
+        <span className="dropdown__count mono" aria-hidden="true">
+          {siteCount}
+        </span>
         <ChevronIcon className="dropdown__chevron" />
       </button>
 
@@ -245,7 +248,10 @@ export function PortfolioMenu() {
                       onClick={() => setOpen(false)}
                     >
                       <span className="dropdown__text">
-                        <span className="dropdown__name">{link.label}</span>
+                        <span className="dropdown__name">
+                          {link.label}
+                          <span className="dropdown__tag mono">{tagOf(link, language)}</span>
+                        </span>
                         <span className="dropdown__description">
                           {describe(link, language)}
                         </span>

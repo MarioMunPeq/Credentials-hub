@@ -48,12 +48,28 @@
   --accent-dim: #3f9678;
   --accent-wash: rgb(86 195 160 / 14%);
 
-  /* Rejilla tecnica de fondo. */
-  --grid-fine: rgb(255 255 255 / 3%);
-  --grid-bold: rgb(255 255 255 / 5%);
+  /*
+    Rejilla tecnica de fondo. Baja de 3%/5% a 2%/3.5%: al 48px de paso la linea
+    fina cruzaba el eje temporal y se leia como parte de la trayectoria.
+  */
+  --grid-fine: rgb(255 255 255 / 2%);
+  --grid-bold: rgb(255 255 255 / 3.5%);
+
+  /*
+    Cursor personalizado. El cursor va en `--text`, el mismo valor que el cuerpo:
+    el esmeralda casi no contrasta con el texto blanco, y lo que lo despega es
+    la silueta de los corchetes más el contorno duro.
+    `--cursor-halo` es ese contorno, y es siempre el contrario al trazo para que
+    funcione en los dos temas. `--cursor-active` sube un punto de luminosidad
+    sobre lo pulsable, sin volver al esmeralda.
+  */
+  --cursor: var(--text);
+  --cursor-active: #ffffff;
+  --cursor-halo: rgb(0 0 0 / 85%);
 
   /* Escala tipografica. */
-  --fs-index: 1.75rem; /* 28px: indice de entrada y numero de seccion. */
+  --fs-index: 1.75rem; /* 28px: numero de seccion. */
+  --fs-entry-index: 1rem; /* 16px: indice dentro de una entrada. */
   --fs-meta: 0.8125rem; /* 13px: fechas, horas, pie. Monoespaciada. */
   --fs-small: 0.9375rem; /* 15px: entidad, descripciones. */
   --fs-base: 1rem; /* 16px: cuerpo, interfaz. */
@@ -83,6 +99,13 @@
   --tap: 44px;
 
   --gutter: 1.25rem;
+  /*
+    Sangría lateral de la barra lateral. El indicador de la sección activa se
+    ancla a este valor, y como cambia con el breakpoint del escritorio hay que
+    tener una variable: con `--gutter` fijo se quedaba a ~5px del borde en
+    escritorio, donde el padding es `--sp-6`.
+  */
+  --side-nav-inset: var(--gutter);
   /* Padding del area de contenido en escritorio. */
   --content-pad: clamp(2rem, 4vw, 5rem);
   /* Tope del contenido en pantallas ultraanchas, alineado a la izquierda. */
@@ -92,6 +115,16 @@
   --t-fast: 130ms;
   --t-panel: 140ms;
   --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /*
+    Geometría de la trayectoria, en px. La banda tiene alto fijo porque ya no
+    hay etiquetas repartidas en carriles: el alto viene del contenido (el año
+    cuelga del eje), no del número de certificados. Por eso no depende de
+    cuántos haya ni de cuántas colisiones haya que resolver.
+  */
+  --trajectory-band: 74px;
+  /* Distancia del borde superior de la banda al eje. */
+  --trajectory-axis: 34px;
 
   --font-serif: 'Newsreader Variable', 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
@@ -120,8 +153,14 @@
   --accent-dim: #2a9b78;
   --accent-wash: rgb(31 138 107 / 12%);
 
-  --grid-fine: rgb(0 0 0 / 4%);
-  --grid-bold: rgb(0 0 0 / 6%);
+  --grid-fine: rgb(0 0 0 / 3%);
+  --grid-bold: rgb(0 0 0 / 4.5%);
+
+  /* En claro el cursor va en tinta, que es `--text` como en oscuro, y el contorno
+     se invierte a blanco para seguir siendo un contorno. */
+  --cursor: var(--text);
+  --cursor-active: #000000;
+  --cursor-halo: rgb(255 255 255 / 90%);
 
   --shadow-panel: 0 1px 2px rgb(20 24 29 / 6%), 0 8px 24px -10px rgb(20 24 29 / 18%);
   --shadow-modal: 0 1px 2px rgb(20 24 29 / 8%), 0 24px 60px -20px rgb(20 24 29 / 28%);
@@ -292,9 +331,13 @@ a {
 /* ---------- 3. Rejilla tecnica de fondo --------------------------------- */
 
 /*
-  Lineas de 1px cada 48px y una marcada cada 240px. Se hace con gradientes
+  Lineas de 1px cada 64px y una marcada cada 320px. Se hace con gradientes
   repetidos porque es la unica forma de dibujar una rejilla solo con CSS, y no
   es un degradado de color: son lineas de un tono plano sobre el fondo.
+
+  El paso es de 64px, no de 48: a 48 las lineas caian con tanta frecuencia que
+  cualquier elemento con relacion de aspecto parecido se alineaba con ellas por
+  casualidad, y la cuadrícula dejaba de leerse como fondo.
 */
 .tech-grid {
   position: fixed;
@@ -305,15 +348,15 @@ a {
     repeating-linear-gradient(
       to right,
       var(--grid-bold) 0 1px,
-      transparent 1px 240px
+      transparent 1px 320px
     ),
     repeating-linear-gradient(
       to bottom,
       var(--grid-bold) 0 1px,
-      transparent 1px 240px
+      transparent 1px 320px
     ),
-    repeating-linear-gradient(to right, var(--grid-fine) 0 1px, transparent 1px 48px),
-    repeating-linear-gradient(to bottom, var(--grid-fine) 0 1px, transparent 1px 48px);
+    repeating-linear-gradient(to right, var(--grid-fine) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(to bottom, var(--grid-fine) 0 1px, transparent 1px 64px);
   /*
     Atenuacion radial hacia los bordes. Sin ella la rejilla se lee como papel de
     cuadras y compite con el texto; asi se percibe como textura de fondo.
@@ -322,7 +365,171 @@ a {
   mask-image: radial-gradient(ellipse 90% 80% at 40% 0%, #000 30%, transparent 85%);
 }
 
-/* ---------- 4. Rejilla de dos paneles ----------------------------------- */
+/* ---------- 4. Cursor personalizado -------------------------------------- */
+
+/*
+  Cuatro corchetes en las esquinas de un cuadro de 36px, como el retículo de
+  autofocus de una cámara. El centro se deja vacío a propósito: es justo lo que
+  estás mirando, y taparlo sería un coste innecesario.
+
+  **Legibilidad.** Aquí no se juega con el color. El problema de las versiones
+  anteriores era que el esmeralda del cursor y el blanco del texto están casi en
+  la misma luminosidad, así que un trazo esmeralda cruzando una línea de texto se
+  leía como ruido. Y un halo negro no arregla nada sobre fondo oscuro: el negro ya
+  está ahí. Por eso el cursor va en `--text`, el mismo valor que el cuerpo, y lo
+  que lo separa del texto es la silueta y el contorno:
+
+    1. Silueta propia. Cuatro barras finas de 2px tienen la forma de los trazos de
+       las letras. Los corchetes en las esquinas no se confunden con nada.
+    2. Contorno duro de 1px en las cuatro direcciones. Es el `keyline` de un
+       pegatina: aunque el corchété coincida en color con una letra que tenga
+       debajo, el contorno lo despega. Se construye con cuatro `drop-shadow` de
+       0px de desenfoque; uno solo difuso no daba contraste medible.
+
+  `--cursor-active` sube a blanco puro sobre lo pulsable. Sigue siendo del mismo
+  tono que el texto, pero un punto por encima de `--text`, así que se nota sin
+  tener que volver al esmeralda, que es justo el color con el que chocaba.
+
+  El cursor del sistema se oculta con una especificidad mayor que la de
+  `button { cursor: pointer }`. Con `body { cursor: none }` no funcionaba:
+  `cursor` se hereda, pero cualquier declaración explícita gana a la herencia, y
+  los botones la declaraban. `:where` baja la especificidad a cero, justo lo
+  contrario de lo que hace falta aquí.
+*/
+.cursor-reticle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  pointer-events: none;
+  opacity: 0;
+  color: var(--cursor);
+  transition:
+    opacity 160ms var(--ease),
+    color 160ms var(--ease);
+}
+
+.cursor-reticle[data-visible='true'] {
+  opacity: 1;
+}
+
+.cursor-reticle__corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  /* El contorno se pinta una sola vez en el contenedor, no por corchete. */
+  transition: transform 160ms var(--ease);
+}
+
+.cursor-reticle__corner--tl {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.cursor-reticle__corner--tr {
+  top: 0;
+  right: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+
+.cursor-reticle__corner--bl {
+  bottom: 0;
+  left: 0;
+  border-top: 0;
+  border-right: 0;
+}
+
+.cursor-reticle__corner--br {
+  right: 0;
+  bottom: 0;
+  border-top: 0;
+  border-left: 0;
+}
+
+/* Contorno duro de 1px: cuatro sombras sin desenfoque, una por dirección. */
+.cursor-reticle[data-visible='true'] {
+  filter: drop-shadow(1px 0 0 var(--cursor-halo))
+    drop-shadow(-1px 0 0 var(--cursor-halo))
+    drop-shadow(0 1px 0 var(--cursor-halo))
+    drop-shadow(0 -1px 0 var(--cursor-halo));
+}
+
+/*
+  Los corchetes se abren hacia fuera en vez de crecer: escalarlos los separaba
+  del punto de mira y perdían la forma de encuadre. `--cursor-active` los sube a
+  blanco puro, que es el único cambio de color que hace falta.
+*/
+.cursor-reticle[data-active='true'] {
+  color: var(--cursor-active);
+}
+
+.cursor-reticle[data-active='true'] .cursor-reticle__corner--tl,
+.cursor-reticle[data-active='true'] .cursor-reticle__corner--bl {
+  transform: translateX(-3px);
+}
+
+.cursor-reticle[data-active='true'] .cursor-reticle__corner--tr,
+.cursor-reticle[data-active='true'] .cursor-reticle__corner--br {
+  transform: translateX(3px);
+}
+
+.cursor-reticle[data-pressed='true'] .cursor-reticle__corner {
+  transform: scale(0.8);
+}
+
+/* Sobre un campo de texto solo queda la barra vertical: es el cursor de
+   inserción, y cuatro corchetes estorban entre caracteres. Un solo corchete se
+   reescribe como la barra; los otros tres se retiran. */
+.cursor-reticle[data-text='true'] {
+  width: 2px;
+  height: 26px;
+  margin: -13px 0 0 -1px;
+  color: var(--cursor-active);
+}
+
+.cursor-reticle[data-text='true'] .cursor-reticle__corner:not(.cursor-reticle__corner--bl) {
+  display: none;
+}
+
+.cursor-reticle[data-text='true'] .cursor-reticle__corner--bl {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-left: 2px solid currentColor;
+}
+
+/*
+  El cursor real se oculta en toda la pagina, incluidos botones y enlaces, con
+  dos exemptiones: los campos de texto recuperan el cursor de insercion del
+  navegador, porque los corchetes no son precisos para escribir, y el visor de
+  PDF incrustado no se puede alcanzar desde el CSS padre.
+*/
+html[data-cursor='custom'] *:not(input):not(textarea):not([contenteditable]) {
+  cursor: none !important;
+}
+
+html[data-cursor='custom'] input,
+html[data-cursor='custom'] textarea,
+html[data-cursor='custom'] [contenteditable] {
+  cursor: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor-reticle,
+  .cursor-reticle__corner {
+    transition-duration: 0.01ms;
+  }
+}
+/* ---------- 5. Rejilla de dos paneles ----------------------------------- */
 
 .layout {
   position: relative;
@@ -332,7 +539,7 @@ a {
   min-height: 100dvh;
 }
 
-/* ---------- 5. Barra lateral -------------------------------------------- */
+/* ---------- 6. Barra lateral -------------------------------------------- */
 
 .sidebar {
   display: grid;
@@ -438,7 +645,7 @@ a {
   content: '';
   position: absolute;
   top: 50%;
-  left: calc(var(--gutter) * -1 + 2px);
+  left: calc(-1 * var(--side-nav-inset) + 2px);
   width: 0;
   height: 2px;
   background: var(--accent);
@@ -623,7 +830,7 @@ a {
   color: var(--accent);
 }
 
-/* ---------- 6. Area de contenido --------------------------------------- */
+/* ---------- 7. Area de contenido --------------------------------------- */
 
 .content {
   position: relative;
@@ -637,7 +844,7 @@ a {
   margin-top: var(--sp-20);
 }
 
-/* ---------- 7. Trayectoria --------------------------------------------- */
+/* ---------- 8. Trayectoria --------------------------------------------- */
 
 .trajectory {
   margin-bottom: var(--sp-4);
@@ -672,6 +879,7 @@ a {
 
 .trajectory__track {
   position: relative;
+  height: var(--trajectory-band);
   margin-inline: auto;
 }
 
@@ -680,30 +888,27 @@ a {
   position: absolute;
   right: 0;
   left: 0;
+  top: var(--trajectory-axis);
   height: 1px;
   background: var(--border-strong);
 }
 
-/* Marcas de año. */
+/*
+  Marcas de año. El contenedor abarca toda la banda, así que las tres piezas se
+  anclan a SU BORDE SUPERIOR y de ahí se miden hacia el eje. Sin etiquetas
+  alrededor ya no hace falta ninguna holgura especial: basta con separar la
+  cifra del eje lo que ocupa su line-height.
+*/
 .trajectory__year {
   position: absolute;
   top: 0;
-  bottom: 0;
+  height: var(--trajectory-band);
   transform: translateX(-0.5px);
-}
-
-.trajectory__guide {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 1px;
-  height: 2.25rem;
-  background: var(--border);
 }
 
 .trajectory__tick {
   position: absolute;
-  bottom: 0;
+  top: calc(var(--trajectory-axis) - 5px);
   left: -2px;
   width: 5px;
   height: 5px;
@@ -713,68 +918,75 @@ a {
 
 .trajectory__year-label {
   position: absolute;
-  top: calc(100% + 0.35rem);
+  top: calc(var(--trajectory-axis) + 14px);
   left: 0;
   color: var(--text-faint);
   font-size: var(--fs-meta);
+  line-height: 1.2;
+  white-space: nowrap;
   transform: translateX(-50%);
 }
 
-/* Nodos. */
-.trajectory__node {
+/*
+  La etiqueta se centra sobre su tick, pero en los extremos eso la saca del eje:
+  la primera se recortaba por la izquierda y se leía "18" en lugar de "2018". Se
+  desplaza hacia dentro en lugar de recentrarla, para no desalinearla del tick.
+*/
+.trajectory__year[data-edge='start'] .trajectory__year-label {
+  transform: translateX(0);
+}
+
+.trajectory__year[data-edge='end'] .trajectory__year-label {
+  transform: translateX(-100%);
+}
+
+/*
+  Guía de separación. Solo aparece cuando dos certificados están tan juntos que
+  el punto se ha tenido que desplazar, y une la posición real por la fecha con
+  la dibujada: sin ella, el eje estaría mintiendo sobre esas dos fechas.
+*/
+.trajectory__lead {
   position: absolute;
-  border: 2px solid var(--accent);
+  top: var(--trajectory-axis);
+  height: 1px;
+  background: var(--accent-dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.trajectory__lead--dimmed {
+  opacity: 0.15;
+}
+
+/*
+  Puntos. Todos del mismo tamaño: el diámetro ya no codifica las horas. Se leen
+  como anillo, no como disco, con el relleno del fondo.
+*/
+.trajectory__dot {
+  position: absolute;
+  top: var(--trajectory-axis);
+  padding: 0;
+  border: 2px solid var(--accent-dim);
   border-radius: 50%;
-  /* Relleno del color del fondo: se lee como un anillo, no como un disco. */
   background: var(--bg);
   transform: translate(-50%, -50%);
   transition:
     background-color var(--t-fast) var(--ease),
     border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
     opacity var(--t-fast) var(--ease);
 }
 
-.trajectory__node:hover,
-.trajectory__node:focus-visible {
+.trajectory__dot:hover,
+.trajectory__dot:focus-visible,
+.trajectory__dot--selected {
   background: var(--accent);
-  cursor: pointer;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-wash);
 }
 
-.trajectory__node--dimmed {
+.trajectory__dot--dimmed {
   opacity: 0.25;
-}
-
-/* Etiquetas cortas. */
-.trajectory__label {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-top: 0.35rem;
-  text-align: center;
-  pointer-events: none;
-}
-
-.trajectory__label::before {
-  content: '';
-  position: absolute;
-  top: -0.4rem;
-  left: 50%;
-  width: 1px;
-  height: 0.4rem;
-  background: var(--border-strong);
-}
-
-.trajectory__label-title {
-  font-size: var(--fs-small);
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.trajectory__label-date {
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  line-height: 1.2;
 }
 
 .trajectory__hint {
@@ -788,39 +1000,73 @@ a {
   opacity: 0;
 }
 
-.trajectory__tooltip {
-  position: fixed;
-  z-index: 45;
-  width: 16.25rem;
-  padding: var(--sp-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
-  box-shadow: var(--shadow-panel);
-  pointer-events: none;
-  animation: fade-in var(--t-fast) var(--ease);
+/*
+  Ficha de detalle. Va siempre en el mismo sitio y con la misma altura mínima, de
+  forma que el contenido que cambia al mover el ratón no desplaza nada de lo que
+  hay alrededor. El borde superior hace de regla y separa el gráfico del texto.
+*/
+.trajectory__card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
 }
 
-.trajectory__tooltip-title {
-  font-size: var(--fs-small);
+.trajectory__card-body {
+  min-width: 0;
+}
+
+.trajectory__card-meta {
+  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  line-height: 1.2;
+}
+
+.trajectory__card-title {
+  margin-top: 2px;
+  font-size: var(--fs-entry);
   font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.trajectory__card-issuer {
+  margin-top: 1px;
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
   line-height: 1.35;
 }
 
-.trajectory__tooltip-issuer {
+.trajectory__card-hint {
   margin-top: 2px;
   color: var(--text-secondary);
   font-size: var(--fs-small);
   line-height: 1.35;
 }
 
-.trajectory__tooltip-meta {
-  margin-top: var(--sp-1);
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
+.trajectory__card-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--accent);
+  font-size: var(--fs-small);
+  white-space: nowrap;
 }
 
-/* ---------- 8. Secciones ------------------------------------------------ */
+.trajectory__card-link span {
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.trajectory__card-link:hover span,
+.trajectory__card-link:focus-visible span {
+  transform: translateX(3px);
+}
+/* ---------- 9. Secciones ------------------------------------------------ */
 
 .section__index {
   color: var(--accent);
@@ -859,7 +1105,7 @@ a {
   border-top: 0;
 }
 
-/* ---------- 9. Entrada -------------------------------------------------- */
+/* ---------- 10. Entrada -------------------------------------------------- */
 
 .entry {
   position: relative;
@@ -872,14 +1118,19 @@ a {
   El indice va en flujo, no en absoluto: colocado encima del titulo se leeria
   como un número suelto flotando, y en una rejilla de dos o tres columnas un
   margen reservado por entrada se come demasiado ancho.
+
+  A 28px, igual que el numero de seccion, los dos niveles gritaban lo mismo y la
+  jerarquia se perdia: el "01" de una titulacion competia con el "02" de
+  "Estudios oficiales". Aqui baja a 16px y pierde algo de saturacion, con lo que
+  se lee como metadato de la entrada y no como encabezado.
 */
 .entry__index {
   display: block;
   margin-bottom: var(--sp-1);
   color: var(--accent);
-  font-size: var(--fs-index);
+  font-size: var(--fs-entry-index);
   line-height: 1;
-  opacity: 0.9;
+  opacity: 0.62;
   transition: opacity var(--t-fast) var(--ease);
 }
 
@@ -953,24 +1204,32 @@ a {
   }
 }
 
-/* ---------- 10. Desplegable de portfolios ------------------------------- */
+/* ---------- 11. Desplegable de portfolios ------------------------------- */
 
 .dropdown {
   position: relative;
   flex: none;
 }
 
+/*
+  Disparador del menú. Era un control de 32px con texto gris encima de un borde
+  fino, y se leía como un campo más de la barra lateral: los portfolios son la
+  prueba de trabajo más visible del sitio y compete visualmente con la búsqueda,
+  que está justo al lado. Aqui sube a 38px, toma el acento en el borde y lleva un
+  contador, que es lo que hace que se note que hay seis destinos detrás.
+*/
 .dropdown__trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  min-height: 2rem;
-  padding-inline: var(--sp-2);
-  border: 1px solid var(--border-strong);
+  gap: var(--sp-2);
+  min-height: 2.375rem;
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--accent-dim);
   border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-secondary);
+  background: var(--accent-wash);
+  color: var(--text);
   font-size: var(--fs-small);
+  font-weight: 500;
   white-space: nowrap;
   transition: background-color var(--t-fast) var(--ease),
     border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
@@ -978,8 +1237,20 @@ a {
 
 .dropdown__trigger:hover,
 .dropdown__trigger[aria-expanded='true'] {
-  background: var(--surface-hover);
-  color: var(--text);
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Contador de destinos. Aria-hidden: elaria-label del boton ya lo anuncia. */
+.dropdown__count {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 .dropdown__chevron {
@@ -996,7 +1267,7 @@ a {
   z-index: 40;
   top: calc(100% + 6px);
   left: 0;
-  width: 17.5rem;
+  width: 19rem;
   padding: 6px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-panel);
@@ -1062,15 +1333,49 @@ a {
   outline-offset: -2px;
 }
 
+/*
+  Nombre y descripción en dos líneas. Sin esto los dos <span> se renderizaban
+  en línea ("Portfolio (CV en vivo)CV interactivo…") y el `text-overflow` de la
+  descripción, que solo funciona en bloque, no se aplicaba: el texto se salía
+  del panel.
+*/
 .dropdown__text {
-  min-width: 0;
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .dropdown__name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
   font-size: var(--fs-small);
   font-weight: 500;
   line-height: 1.3;
+}
+
+/*
+  Etiqueta de tema. Seis portfolios con nombre propio ("Persona 5", "Vault
+  Archive") no dicen nada sin una pista de en que estan hechos, y las seis
+  descripciones son demasiado largas para leerlas antes de elegir.
+*/
+.dropdown__tag {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  color: var(--text-faint);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.dropdown__item:hover .dropdown__tag,
+.dropdown__item:focus-visible .dropdown__tag {
+  border-color: var(--accent-dim);
+  color: var(--accent);
 }
 
 .dropdown__description {
@@ -1096,12 +1401,20 @@ a {
   transform: translateX(2px);
 }
 
-.dropdown__scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: rgb(9 11 14 / 55%);
-  animation: fade-in var(--t-panel) var(--ease);
+/*
+  Fondo oscurecido del desplegable. Solo tiene sentido en la hoja inferior de
+  móvil: en escritorio es un `fixed inset: 0` que no aporta nada (sobre el fondo
+  casi negro ni se ve) y el cierre por clic fuera ya lo resuelve el oyente de
+  `pointerdown` del propio menú.
+*/
+@media (width < 40rem) {
+  .dropdown__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgb(9 11 14 / 55%);
+    animation: fade-in var(--t-panel) var(--ease);
+  }
 }
 
 @keyframes fade-in {
@@ -1110,7 +1423,7 @@ a {
   }
 }
 
-/* ---------- 11. Modal y miniatura de PDF -------------------------------- */
+/* ---------- 12. Modal y miniatura de PDF -------------------------------- */
 
 .modal-overlay {
   position: fixed;
@@ -1245,7 +1558,7 @@ a {
   }
 }
 
-/* ---------- 12. Estados ------------------------------------------------- */
+/* ---------- 13. Estados ------------------------------------------------- */
 
 .state {
   padding-block: var(--sp-20);
@@ -1293,7 +1606,7 @@ a {
   }
 }
 
-/* ---------- 13. Consultas de medios ------------------------------------- */
+/* ---------- 14. Consultas de medios ------------------------------------- */
 
 @media (width >= 40rem) {
   :root {
@@ -1307,6 +1620,10 @@ a {
   ancho restante y es el unico que desplaza.
 */
 @media (width >= 64rem) {
+  :root {
+    --side-nav-inset: var(--sp-6);
+  }
+
   .layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);

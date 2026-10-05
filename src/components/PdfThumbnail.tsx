@@ -14,8 +14,18 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-/** Ancho de la miniatura en px. La altura sale de la proporción de la página. */
-const THUMB_WIDTH = 220
+/**
+ * Ancho de la miniatura en px. La altura sale de la proporción de la página.
+ *
+ * A 220px el texto del PDF era ilegible: la miniatura informaba de que había un
+ * documento, pero no de qué. A 500px se lee. El render se hace siempre a este
+ * ancho y en pantallas estrechas se deja que el CSS lo reduzca, así que la caché
+ * sirve igual en móvil y en escritorio.
+ */
+const THUMB_WIDTH = 500
+
+/** Ancho mínimo antes de empezar a reducir la miniatura. */
+const THUMB_MIN_WIDTH = 200
 
 /** Margen de seguridad para que la miniatura no toque el borde del viewport. */
 const VIEWPORT_MARGIN = 12
@@ -76,6 +86,7 @@ async function renderFirstPage(url: string): Promise<HTMLCanvasElement | null> {
     const loadingTask = pdfjs.getDocument({ url })
     const doc = await withTimeout(loadingTask.promise, RENDER_TIMEOUT)
 
+    let rendered = false
     try {
       const page = await withTimeout(doc.getPage(1), RENDER_TIMEOUT)
 
@@ -102,10 +113,16 @@ async function renderFirstPage(url: string): Promise<HTMLCanvasElement | null> {
       )
 
       cache.set(url, canvas)
+      rendered = true
       return canvas
     } finally {
-      // Libera los recursos del worker tanto si el render fue bien como si no.
-      void loadingTask.destroy()
+      /*
+        `destroy()` no solo cierra el documento: termina también el worker que
+        comparte pdf.js, y el siguiente hover se encontraría sin él. Como la
+        página ya está en `cache`, no hay nada que liberar en el camino bueno y
+        solo se destruye cuando el render falla a medias.
+      */
+      if (!rendered) void loadingTask.destroy()
     }
   } catch {
     // Silencioso a propósito: la miniatura es opcional.
@@ -148,16 +165,23 @@ export function PdfThumbnail({ url, active, pointerX, pointerY }: PdfThumbnailPr
     return () => clearTimeout(timer)
   }, [active, url])
 
-  // El canvas cacheado se copia a uno visible: el mismo canvas no puede estar
-  // en dos sitios del DOM a la vez.
+  /*
+    El canvas cacheado se copia a uno visible: el mismo canvas no puede estar en
+    dos sitios del DOM a la vez.
+
+    `active` va en las dependencias a propósito. Al salir del hover el componente
+    devuelve `null` y el canvas visible se desmonta, así que al volver hay un
+    `<canvas>` nuevo y vacío. Si el efecto solo dependiera de `source`, que ya
+    está en caché, no volvería a dibujarse y la miniatura saldría gris.
+  */
   useEffect(() => {
     const target = canvasRef.current
-    if (!target || !source) return
+    if (!target || !source || !active) return
 
     target.width = source.width
     target.height = source.height
     target.getContext('2d')?.drawImage(source, 0, 0)
-  }, [source])
+  }, [source, active])
 
   /*
     El canvas cacheado se conserva entre hovers: al sacarlo de la vista no hace
@@ -165,22 +189,30 @@ export function PdfThumbnail({ url, active, pointerX, pointerY }: PdfThumbnailPr
   */
   if (!active || !source) return null
 
+  /*
+    El canvas siempre se renderiza a THUMB_WIDTH, pero en pantallas estrechas se
+    muestra más pequeño: a 500px fijos tapaba la página en móvil. El ancho de
+    presentación se calcula aquí, con lo que el placement de abajo puede usarlo
+    para no salirse del viewport.
+  */
+  const width = Math.max(THUMB_MIN_WIDTH, Math.min(THUMB_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 6))
+  const height = Math.round((source.height / source.width) * width)
+
   // Se ancla al borde derecho cuando el puntero está en la última mitad.
-  const flipped = pointerX > window.innerWidth - THUMB_WIDTH - VIEWPORT_MARGIN * 3
-  const rawLeft = flipped ? pointerX - THUMB_WIDTH - 20 : pointerX + 20
+  const flipped = pointerX > window.innerWidth - width - VIEWPORT_MARGIN * 3
+  const rawLeft = flipped ? pointerX - width - 20 : pointerX + 20
   const left = Math.min(
     Math.max(VIEWPORT_MARGIN, rawLeft),
-    window.innerWidth - THUMB_WIDTH - VIEWPORT_MARGIN,
+    window.innerWidth - width - VIEWPORT_MARGIN,
   )
 
   // Si no cabe debajo del puntero, se coloca por encima.
-  const height = Math.round((source.height / source.width) * THUMB_WIDTH)
   const rawTop = pointerY + 20 + height > window.innerHeight - VIEWPORT_MARGIN ? pointerY - height - 20 : pointerY + 20
   const top = Math.max(VIEWPORT_MARGIN, rawTop)
 
   return (
     <div className="pdf-thumbnail" style={{ top, left }} aria-hidden="true">
-      <canvas ref={canvasRef} style={{ width: THUMB_WIDTH, height }} />
+      <canvas ref={canvasRef} style={{ width, height }} />
     </div>
   )
 }

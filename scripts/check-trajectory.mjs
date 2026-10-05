@@ -2,6 +2,10 @@
  * Comprobacion de la geometria de la trayectoria con los datos reales.
  * Es logica pura, asi que se puede ejecutar con Node sin navegador.
  *   node scripts/check-trajectory.mjs
+ *
+ * La trayectoria ya no reparte etiquetas en carriles: solo hay un eje con anos y
+ * puntos, y toda la informacion vive en una ficha de detalle. Lo que queda por
+ * verificar es que los puntos no se solapen y que ninguno se salga del eje.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -9,22 +13,39 @@ import { readFile } from 'node:fs/promises'
 const raw = JSON.parse(await readFile('public/data/certificates.json', 'utf8'))
 
 // --- Replica de las utilidades, para poder ejecutarlas sin compilar TS --------
-const NODE_MIN = 10
-const NODE_MAX = 40
-const LANES = 4
-const LABEL_GAP = 10
-const CHAR_WIDTH = 7.3
-const AXIS_LABEL_OFFSET = 26
-const LANE_HEIGHT = 46
-const LABEL_HEIGHT = 38
-const YEAR_HEIGHT = 30
-const MIN_AXIS_BAND = 96
+const DOT_SIZE = 11
+const DOT_GAP = 16
 
 const MONTHS = { es: ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'] }
 
 function timeOf(entry) {
   const [y, m = '1', d = '1'] = entry.date.split('-')
   return Date.UTC(Number(y), Number(m) - 1, Number(d))
+}
+
+/** Misma relajacion que `placeDots`: dos pasadas, una por sentido. */
+function placeDots(points, trackWidth) {
+  const half = DOT_SIZE / 2
+  const limit = trackWidth - half
+  // La posicion real depende del ancho que se este probando, asi que se calcula
+  // aqui y no en la definicion del punto: fijarla a un ancho daria un
+  // desplazamiento falso en todos los demas.
+  const trueLefts = points.map((p) => (p.left / 100) * trackWidth)
+  const lefts = [...trueLefts]
+
+  for (let i = 1; i < lefts.length; i += 1) {
+    lefts[i] = Math.max(lefts[i], lefts[i - 1] + DOT_GAP)
+  }
+  for (let i = lefts.length - 1; i >= 0; i -= 1) {
+    let value = Math.min(lefts[i], limit)
+    if (i < lefts.length - 1) value = Math.min(value, lefts[i + 1] - DOT_GAP)
+    lefts[i] = value
+  }
+
+  return lefts.map((left, i) => ({
+    left: Math.max(half, left),
+    shift: Math.max(half, left) - trueLefts[i],
+  }))
 }
 
 const certs = raw
@@ -36,87 +57,83 @@ const firstYear = Math.min(...years)
 const lastYear = Math.max(...years)
 const from = Date.UTC(firstYear, 0, 1)
 const to = Date.UTC(lastYear, 11, 31)
+const totalHours = certs.reduce((sum, c) => sum + c.hours, 0)
 const maxHours = Math.max(...certs.map((c) => c.hours))
 
 const ratio = (t) => Math.min(100, Math.max(0, ((t - from) / (to - from)) * 100))
 
 console.log(`Dominio: 1 ene ${firstYear} -> 31 dic ${lastYear}`)
-console.log(`Horas maximas: ${maxHours}\n`)
+console.log(`Certificados: ${certs.length}   Horas: ${totalHours} (max ${maxHours})\n`)
 
-const points = certs.map((c) => {
-  const size = c.hours > 0 ? NODE_MIN + (NODE_MAX - NODE_MIN) * Math.sqrt(c.hours / maxHours) : NODE_MIN
-  return { id: c.id, short: c.shortTitle?.es ?? c.title, left: ratio(c.time), size, time: c.time }
-})
+const points = certs.map((c) => ({
+  id: c.id,
+  short: c.shortTitle?.es ?? c.title,
+  left: ratio(c.time),
+  hours: c.hours,
+  time: c.time,
+}))
 
-console.log('NODOS')
+console.log('PUNTOS')
 for (const p of points) {
   const d = new Date(p.time)
   console.log(
     `  ${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}` +
-      `  left=${p.left.toFixed(1).padStart(5)}%  d=${p.size.toFixed(1).padStart(4)}px  "${p.short}"`,
+      `  left=${p.left.toFixed(1).padStart(5)}%  ${String(p.hours).padStart(3)} h  "${p.short}"`,
   )
 }
 
-// --- Colisiones de etiquetas a varias anchuras -------------------------------
+// --- Colisiones de puntos a varias anchuras -----------------------------------
+let failed = false
+
 for (const trackWidth of [900, 1200, 1600, 2000, 2400]) {
-  const laneEnd = new Array(LANES).fill(Number.NEGATIVE_INFINITY)
-  const placed = []
-  let hidden = 0
+  const placed = placeDots(points, trackWidth)
+  const scaled = points.map((p, i) => ({ ...p, ...placed[i] }))
 
-  points.forEach((point, position) => {
-    const width = Math.min(trackWidth, point.short.length * CHAR_WIDTH + 20)
-    const center = (point.left / 100) * trackWidth
-    let left = Math.max(0, Math.min(trackWidth - width, center - width / 2))
-    const right = left + width
-
-    const preferred = position % 2 === 0 ? [0, 2, 1, 3] : [1, 3, 0, 2]
-    let chosen = -1
-    for (const lane of preferred) {
-      const occupied = laneEnd[lane] ?? Number.NEGATIVE_INFINITY
-      if (left >= occupied + LABEL_GAP) { chosen = lane; break }
-    }
-
-    if (chosen === -1) { hidden += 1; return }
-    laneEnd[chosen] = right
-    placed.push({ id: point.id, lane: chosen, left, right })
-  })
-
-  // Comprobacion de solapamientos reales entre etiquetas visibles
   let overlaps = 0
-  for (let i = 0; i < placed.length; i += 1) {
-    for (let j = i + 1; j < placed.length; j += 1) {
-      const a = placed[i], b = placed[j]
-      if (a.lane !== b.lane) continue
-      if (a.left < b.right && b.left < a.right) overlaps += 1
-    }
+  for (let i = 1; i < scaled.length; i += 1) {
+    const gap = scaled[i].left - scaled[i - 1].left
+    if (gap < DOT_GAP - 0.01) overlaps += 1
   }
 
-  const usedLanes = [...new Set(placed.map((p) => p.lane))].sort()
-  let above = 0, below = 0
-  for (const p of placed) {
-    const offset = (p.lane < 2 ? -1 : 1) * (AXIS_LABEL_OFFSET + (p.lane % 2) * LANE_HEIGHT)
-    const need = Math.abs(offset) + LABEL_HEIGHT
-    if (offset < 0) above = Math.max(above, need); else below = Math.max(below, need)
-  }
-  const axisTop = Math.max(MIN_AXIS_BAND, above)
-  const axisHeight = axisTop + Math.max(YEAR_HEIGHT, below)
-  const total = 62 + axisHeight // cabecera de seccion aproximada
+  const half = DOT_SIZE / 2
+  const outside = scaled.filter((p) => p.left < half - 0.01 || p.left > trackWidth - half + 0.01)
+  const shifted = scaled.filter((p) => p.shift > 0.5)
+  const worst = Math.max(0, ...shifted.map((p) => p.shift))
+
+  if (overlaps > 0 || outside.length > 0) failed = true
 
   console.log(
-    `  ${String(trackWidth).padStart(4)}px  carriles=[${usedLanes.join(',')}]  ` +
-      `ocultas=${hidden}  solapes=${overlaps}  eje=${axisHeight}px  total≈${total}px`,
+    `  ${String(trackWidth).padStart(4)}px  solapes=${overlaps}  fuera=${outside.length}  ` +
+      `desplazados=${shifted.length}${shifted.length > 0 ? ` (max ${worst.toFixed(1)}px)` : ''}`,
   )
+  for (const p of shifted) {
+    console.log(`      guia: "${p.short}" +${p.shift.toFixed(1)}px desde su fecha real`)
+  }
 }
 
-// --- Deteccion de proximidad: los dos PRL de 2026 ---------------------------
+// --- El alto ya no depende de los datos ---------------------------------------
+console.log('\nALTO')
+console.log('  banda del eje  = 74px  (fija, var CSS --trajectory-band)')
+console.log('  ficha          = 104px (minimo, var CARD_MIN_HEIGHT)')
+console.log('  antes: 273-424px segun colisiones de carriles')
+
+// --- Proximidad de los dos PRL de 2026 ---------------------------------------
 const sep = points.find((p) => p.id.includes('health'))
 const sep2 = points.find((p) => p.id === 'prl-consultant')
 if (sep && sep2) {
   const gapPct = Math.abs(sep.left - sep2.left)
   const gapPx = (gapPct / 100) * 2400
-  console.log(`\nPRL 2026: separados ${gapPct.toFixed(2)}% = ${gapPx.toFixed(0)}px a 2400px de eje`)
-  console.log(`  ancho estimado de etiqueta ≈ ${(sep2.short.length * CHAR_WIDTH + 20).toFixed(0)}px`)
-  console.log(`  ${gapPx < sep2.short.length * CHAR_WIDTH + 20 ? 'COLISIONAN: requieren carriles distintos' : 'caben en el mismo carril'}`)
+  console.log(`\nPRL 2026: separados ${gapPct.toFixed(2)}% = ${gapPx.toFixed(1)}px a 2400px de eje`)
+  console.log(
+    `  ${gapPx < DOT_GAP
+      ? `se desplazan a ${DOT_GAP}px y se dibuja guia de separacion`
+      : 'caben sin desplazamiento'}`,
+  )
 }
 
 console.log(`\nMeses disponibles en las traducciones: ${Object.keys(MONTHS.es).length}`)
+
+if (failed) {
+  console.error('\nFALLO: hay puntos solapados o fuera del eje')
+  process.exit(1)
+}

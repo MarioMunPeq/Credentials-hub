@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar'
 import { Trajectory } from './components/Trajectory'
 import { CertificateSectionBlock } from './components/CertificateSection'
 import { PdfModal } from './components/PdfModal'
+import { CursorReticle } from './components/CursorReticle'
 import { ErrorState, EmptyState, LoadingState } from './components/states'
 import { useCertificates } from './hooks/useCertificates'
 import { useLanguage } from './context/language-context'
@@ -27,6 +28,9 @@ export function App() {
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Elemento que abrió el modal, para devolverle el foco al cerrarlo.
   const previewTriggerRef = useRef<HTMLElement | null>(null)
+  // Área de contenido: es la que desplaza en escritorio, así que el scrollspy
+  // necesita conocerla.
+  const contentRef = useRef<HTMLElement>(null)
 
   const closePreview = useCallback(() => {
     setPreview(null)
@@ -118,6 +122,8 @@ export function App() {
       {/* Rejilla técnica fija detrás de todo. No interactúa con el ratón. */}
       <div className="tech-grid" aria-hidden="true" />
 
+      <CursorReticle />
+
       <a className="skip-link" href="#contenido">
         {t.header.skipToContent}
       </a>
@@ -129,10 +135,11 @@ export function App() {
         query={query}
         onQueryChange={setQuery}
         resultLabel={resultLabel}
+        contentRef={contentRef}
         onJump={jumpTo}
       />
 
-      <main id="contenido" className="content">
+      <main id="contenido" className="content" ref={contentRef}>
         {status === 'loading' && <LoadingState />}
 
         {status === 'error' && (

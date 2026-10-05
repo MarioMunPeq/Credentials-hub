@@ -60,8 +60,6 @@ const es = {
     regionLabel: 'Línea de tiempo de certificaciones',
     nodeLabel: (title: string, issuer: string, meta: string) =>
       `${title}, ${issuer}. ${meta}`,
-    nodeLabelShort: (title: string, meta: string) => `${title}. ${meta}`,
-    /** Rango de años bajo el título. */
     yearRange: (from: number, to: number) => `${from} — ${to}`,
     years: 'Años',
     /** Pista de scroll horizontal en móvil. */
@@ -70,6 +68,11 @@ const es = {
     alternativeText:
       'Esta información aparece también como lista en las secciones siguientes.',
     hours: 'Horas',
+    /** Etiqueta de la ficha en reposo, que resume el conjunto. */
+    certificates: 'certificados',
+    summaryHint: 'Pasa el ratón por un punto del eje para ver el detalle.',
+    /** Enlace de la ficha hacia la entrada de la sección correspondiente. */
+    goToEntry: 'Ir a la ficha',
   },
 
   entry: {
@@ -162,13 +165,15 @@ const en: TranslationShape = {
     regionLabel: 'Timeline of certifications',
     nodeLabel: (title: string, issuer: string, meta: string) =>
       `${title}, ${issuer}. ${meta}`,
-    nodeLabelShort: (title: string, meta: string) => `${title}. ${meta}`,
     yearRange: (from: number, to: number) => `${from} — ${to}`,
     years: 'Years',
     swipeHint: 'Swipe',
     alternativeText:
       'This information is also available as a list in the sections below.',
     hours: 'Hours',
+    certificates: 'certifications',
+    summaryHint: 'Hover a point on the axis to see the detail.',
+    goToEntry: 'Go to entry',
   },
 
   entry: {
