@@ -47,8 +47,8 @@ export const portfolioLinks: PortfolioLink[] = [
   },
   {
     id: 'repository-library',
-    label: 'Repository Library',
-    url: 'https://mariomunpeq.github.io/Repository-Library/',
+    label: 'Steam Portfolio',
+    url: 'https://mariomunpeq.github.io/Steam-Portfolio/',
     group: 'sites',
     tag: { es: 'Steam', en: 'Steam' },
     description: {
@@ -80,8 +80,8 @@ export const portfolioLinks: PortfolioLink[] = [
   },
   {
     id: 'vault-archive',
-    label: 'Vault Archive',
-    url: 'https://mariomunpeq.github.io/Vault-Archive/',
+    label: 'Fallout Portfolio',
+    url: 'https://mariomunpeq.github.io/Fallout-Portfolio/',
     group: 'sites',
     tag: { es: 'Fallout 3', en: 'Fallout 3' },
     description: {
