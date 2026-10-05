@@ -27,6 +27,105 @@
 
 /* ---------- 1. Tokens ---------------------------------------------------- */
 
+/*
+  Los tokens de color se declaran con `@property` para poder interpolarlos.
+
+  Sin esto, cambiar `data-theme` en `<html>` teletransporta cada color de golpe: no
+  hay nada queAnime porque las propiedades personalizadas no son animables por
+  defecto. Con `syntax: '<color>'` registradas, el navegador las sabe
+  interpolar, y como `inherits: true`, los descendientes heredan el valor ya
+  interpolado en cada fotograma. Es lo que permite que **toda** la pagina vire de
+  color a la vez y de forma continua, en lugar de un flash y un cambio de golpe.
+
+  `initial-value` es el valor del tema oscuro, el mismo que define `:root` más
+  abajo: si faltara, durante el primer pintado el navegador usaría el valor
+  inicial y las superficies aparecerían en negro puro.
+*/
+@property --bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #0f1115;
+}
+@property --surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #15181d;
+}
+@property --surface-hover {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1b1f25;
+}
+@property --border {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #22262c;
+}
+@property --border-strong {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2e343c;
+}
+@property --text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e6e8eb;
+}
+@property --text-secondary {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #9aa1ab;
+}
+@property --text-faint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #737c86;
+}
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #56c3a0;
+}
+@property --accent-dim {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3f9678;
+}
+@property --accent-wash {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(86 195 160 / 14%);
+}
+@property --grid-fine {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(255 255 255 / 2%);
+}
+@property --grid-bold {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(255 255 255 / 3.5%);
+}
+@property --band-tint {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(255 255 255 / 1.5%);
+}
+@property --cursor {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #e6e8eb;
+}
+@property --cursor-active {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #ffffff;
+}
+@property --cursor-halo {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgb(0 0 0 / 85%);
+}
 :root {
   color-scheme: dark;
 
@@ -99,13 +198,6 @@
   --tap: 44px;
 
   --gutter: 1.25rem;
-  /*
-    Sangría lateral de la barra lateral. El indicador de la sección activa se
-    ancla a este valor, y como cambia con el breakpoint del escritorio hay que
-    tener una variable: con `--gutter` fijo se quedaba a ~5px del borde en
-    escritorio, donde el padding es `--sp-6`.
-  */
-  --side-nav-inset: var(--gutter);
   /* Padding del area de contenido en escritorio. */
   --content-pad: clamp(2rem, 4vw, 5rem);
   /* Tope del contenido en pantallas ultraanchas, alineado a la izquierda. */
@@ -114,11 +206,6 @@
 
   --t-fast: 190ms;
   --t-panel: 220ms;
-  /*
-    Duración de la apertura circular del tema. La tiene que conocer también
-    `useThemeReveal`, que la replica en su temporizador de seguridad.
-  */
-  --theme-reveal: 620ms;
   /* Entrada de bloques y revelado al hacer scroll. */
   --enter-rise: 620ms;
   --reveal-rise: 520ms;
@@ -177,6 +264,42 @@
 
   --shadow-panel: 0 1px 2px rgb(20 24 29 / 6%), 0 8px 24px -10px rgb(20 24 29 / 18%);
   --shadow-modal: 0 1px 2px rgb(20 24 29 / 8%), 0 24px 60px -20px rgb(20 24 29 / 28%);
+}
+
+/*
+  Transición del tema. Va en `<html>` y no en `body` porque es en la raíz donde se
+  cambia `data-theme`, y los tokens se heredan: basta con animar sus valores en la
+  raíz para que todo el árbol los interpole a la vez.
+
+  Se listan uno a uno en vez de usar `transition: all`. `all` también intentaría
+  animar `transform`, `opacity` y el resto de propiedades de cada elemento, lo que
+  haría que al cambiar de tema todo el sitio se moviera.
+
+  Sin soporte de `@property` el cambio es instantáneo, que es el comportamiento
+  de siempre y sigue siendo correcto: solo se pierde la interpolación.
+
+  `prefers-reduced-motion` lo desactiva con el bloque global del final, que pone
+  las duraciones a 0,01ms.
+*/
+html {
+  transition:
+    --bg 460ms var(--ease-out),
+    --surface 460ms var(--ease-out),
+    --surface-hover 460ms var(--ease-out),
+    --border 460ms var(--ease-out),
+    --border-strong 460ms var(--ease-out),
+    --text 460ms var(--ease-out),
+    --text-secondary 460ms var(--ease-out),
+    --text-faint 460ms var(--ease-out),
+    --accent 460ms var(--ease-out),
+    --accent-dim 460ms var(--ease-out),
+    --accent-wash 460ms var(--ease-out),
+    --grid-fine 460ms var(--ease-out),
+    --grid-bold 460ms var(--ease-out),
+    --band-tint 460ms var(--ease-out),
+    --cursor 460ms var(--ease-out),
+    --cursor-active 460ms var(--ease-out),
+    --cursor-halo 460ms var(--ease-out);
 }
 
 /* ---------- 2. Reset y bases --------------------------------------------- */
@@ -458,9 +581,15 @@ a {
   top: 0;
   left: 0;
   z-index: 100;
-  width: 36px;
-  height: 36px;
-  margin: -18px 0 0 -18px;
+  /*
+    32px, no 36px. A 36px, sobre el botón de Portfolios —38px de alto— los
+    corchetes con el escalado de hover medían 46px y tapaban el contador «6» y
+    parte de la etiqueta. La legibilidad no depende del tamaño: depende del
+    grosor de 2px y del contorno duro, y ambos se conservan a 32px.
+  */
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
   pointer-events: none;
   opacity: 0;
   color: var(--cursor);
@@ -491,13 +620,15 @@ a {
   transition: transform 190ms var(--ease);
 }
 
+/* 1,18 y no 1,28: sobre un control de 38px, un 28% de más lo convertía en un
+   marco mayor que el botón. */
 .cursor-reticle[data-active='true'] .cursor-reticle__scale {
-  transform: scale(1.28);
+  transform: scale(1.18);
 }
 
 /* Al pulsar se contrae un poco: el gesto de hundir el clic. */
 .cursor-reticle[data-pressed='true'] .cursor-reticle__scale {
-  transform: scale(1.1);
+  transform: scale(1.06);
 }
 
 /*
@@ -539,11 +670,11 @@ a {
 */
 .cursor-reticle__corner {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border: 2px solid currentColor;
-  --dx: 1.5px;
-  --dy: 1.5px;
+  --dx: 1.25px;
+  --dy: 1.25px;
   animation: cursor-drift 4.4s var(--ease) infinite;
   animation-delay: var(--delay, 0s);
 }
@@ -559,7 +690,8 @@ a {
 .cursor-reticle__corner--tr {
   top: 0;
   right: 0;
-  --dx: -1.5px;
+  --dx: -1.25px;
+  --dy: 1.25px;
   --delay: -1.1s;
   border-bottom: 0;
   border-left: 0;
@@ -568,7 +700,7 @@ a {
 .cursor-reticle__corner--bl {
   bottom: 0;
   left: 0;
-  --dy: -1.5px;
+  --dy: -1.25px;
   --delay: -2.2s;
   border-top: 0;
   border-right: 0;
@@ -577,15 +709,15 @@ a {
 .cursor-reticle__corner--br {
   right: 0;
   bottom: 0;
-  --dx: -1.5px;
-  --dy: -1.5px;
+  --dx: -1.25px;
+  --dy: -1.25px;
   --delay: -3.3s;
   border-top: 0;
   border-left: 0;
 }
 
 /*
-  Latido. La caja respira entre 36px y unos 33: los corchetes se separan un poco
+  Latido. La caja respira entre 32px y unos 29,5: los corchetes se separan un poco
   hacia dentro y vuelven a su esquina. Un trazo de 1,5px es casi imperceptible
   quieto, así que la amplitud es pequeña a propósito: se nota el movimiento, no
   el desplazamiento.
@@ -675,41 +807,6 @@ html[data-cursor='custom'] [contenteditable] {
     opacity: 0.7;
   }
 }
-/* ---------- 5. Apertura circular del tema -------------------------------- */
-
-
-
-/*
-  Rectángulo del color de destino que se agranda en círculo desde el botón de
-  tema. No se anima ningún color de la página: mientras el círculo crece se ve la
-  página vieja recortándose, y al cubrirlo todo se cambia el tema por debajo. Es
-  lo único que evita el collage parpadeante de un `transition` sobre `body`.
-
-  El color sale de los propios tokens: `data-theme` es un selector de atributo, no
-  un selector de raíz, así que puesto en este elemento le aplica el bloque entero
-  del tema de destino — `--bg` y `color-scheme` incluidos — sin duplicar aquí ni
-  un solo valor. Por eso el componente lo añade al rectángulo y no a la raíz.
-*/
-.theme-reveal {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  pointer-events: none;
-  background: var(--bg);
-  clip-path: circle(0 at var(--reveal-x) var(--reveal-y));
-  transition: clip-path var(--theme-reveal) var(--ease);
-}
-
-.theme-reveal[data-expanded='true'] {
-  clip-path: circle(var(--reveal-radius) at var(--reveal-x) var(--reveal-y));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-reveal {
-    display: none;
-  }
-}
-
 /* ---------- 6. Rejilla de dos paneles ----------------------------------- */
 
 .layout {
@@ -791,7 +888,6 @@ html[data-cursor='custom'] [contenteditable] {
 
 /* Navegación: en móvil es una fila con scroll, en escritorio una columna. */
 .side-nav__list {
-  position: relative;
   display: flex;
   gap: var(--sp-4);
   margin: 0;
@@ -814,81 +910,34 @@ html[data-cursor='custom'] [contenteditable] {
   gap: var(--sp-2);
   min-height: var(--tap);
   padding-block: var(--sp-2);
+  border-radius: var(--radius);
   color: var(--text-faint);
   font-size: var(--fs-small);
   white-space: nowrap;
-  transition: color var(--t-fast) var(--ease);
-}
-
-/*
-  Indicador de la sección activa: un único elemento que se traslada. Antes cada
-  enlace llevaba su propio `::before` que crecía desde cero, así que al cambiar
-  de sección se veían dos animaciones a la vez en sitios distintos —la anterior
-  encogiendo y la nueva creciendo— y eso se lee como un parpadeo, no como un
-  movimiento. Aquí solo se mueve `--indicator-y`, y como la transición es del
-  mismo `transform`, el recorrido se ve entero.
-
-  Son 2px de alto, no el alto del enlace: con `height: var(--indicator-h)` el
-  indicador se convertía en un bloque de 20×44px de esmeralda, que era peor que
-  la línea que sustituye. El alto del enlace se usa solo para centrarlo.
-*/
-.side-nav__indicator {
-  position: absolute;
-  top: 0;
-  left: calc(-1 * var(--side-nav-inset) + 2px);
-  width: 1.25rem;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(var(--indicator-y, 0));
   transition:
-    transform 320ms var(--ease-out),
-    opacity var(--t-fast) var(--ease);
-}
-
-@media (width >= 64rem) {
-  .side-nav__indicator {
-    opacity: 1;
-  }
-}
-
-.side-nav__number {
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  transition: color var(--t-fast) var(--ease);
-}
-
-.side-nav__link:hover {
-  color: var(--text-secondary);
-}
-
-.side-nav__link[aria-current='true'] {
-  color: var(--text);
+    background-color var(--t-panel) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 
 /*
-  En móvil la lista es una fila con scroll y un indicador que se traslada en
-  vertical no tiene sitio: ahí el subrayado lo pone cada enlace, con `opacity` en
-  lugar de con `width` para que no haya medida que recalcular.
-*/
-@media (width < 64rem) {
-  .side-nav__link::before {
-    content: '';
-    position: absolute;
-    right: 0;
-    bottom: 2px;
-    left: 0;
-    height: 1px;
-    background: var(--accent);
-    opacity: 0;
-    transition: opacity var(--t-fast) var(--ease);
-  }
+  La sección activa se ilumina: fondo de acento y texto claro.
 
-  .side-nav__link[aria-current='true']::before {
-    opacity: 1;
-  }
+  El `padding-inline` con su `margin-inline` negativo es lo que permite que la fila
+  tenga fondo sin desplazar el texto. Se ilumina la fila entera, no solo el
+  número: iluminar solo el número deja la sensación de que se selecciona un dato,
+  no una sección.
+
+  Sustituye a dos versiones anteriores de barra lateral —una que crecía dentro del
+  enlace y otra que se desplazaba entre enlaces—. Las dos se leían como un tachón
+  sobre el número, no como una selección. Un fondo no puede confundirse con nada y
+  además no hay que medir nada para dibujarlo.
+*/
+.side-nav__link[aria-current='true'] {
+  padding-inline: var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  color: var(--text);
 }
 
 .side-nav__link[aria-current='true'] .side-nav__number {
@@ -992,7 +1041,16 @@ html[data-cursor='custom'] [contenteditable] {
 
 /* ---------- 9. Indice de credenciales ------------------------------------ */
 
+/*
+  El resumen lleva su propio margen arriba, además del `gap` de `.sections`.
+
+  Antes no tenía ninguno y quedaba pegado a la última entrada de PRL, lo que
+  hacia que el resumen y PRL se leyeran como un bloque único. 8rem es el doble del
+  `gap` entre secciones: suficiente para separar sin que el hueco parezca un
+  fallo de maquetación.
+*/
 .index {
+  margin-top: 8rem;
   margin-bottom: var(--sp-8);
 }
 
@@ -1467,10 +1525,18 @@ html[data-cursor='custom'] [contenteditable] {
   min-width: 0;
 }
 
+/*
+  Nombre y etiqueta van en la misma línea. El nombre cede el espacio —`min-width:
+  0` le permite encogerse— y la etiqueta no: es el elemento corto que no debe
+  partirse nunca. Con «Puesto de inspección» el nombre se partía en dos líneas y
+  la etiqueta quedaba pegada a la línea base de la primera, descuadrada respecto a
+  las demás filas; con «Frontera» hay sitio de sobra y todos los nombres caben.
+*/
 .dropdown__name {
   display: flex;
   align-items: baseline;
   gap: var(--sp-2);
+  min-width: 0;
   font-size: var(--fs-small);
   font-weight: 500;
   line-height: 1.3;
@@ -1479,7 +1545,8 @@ html[data-cursor='custom'] [contenteditable] {
 /*
   Etiqueta de tema. Seis portfolios con nombre propio ("Persona 5", "Vault
   Archive") no dicen nada sin una pista de en que estan hechos, y las seis
-  descripciones son demasiado largas para leerlas antes de elegir.
+  descripciones son demasiado largas para leerlas antes de elegir. Va corta a
+  proposito: cabe al lado del nombre sin empujar el texto a dos lineas.
 */
 .dropdown__tag {
   flex: none;
@@ -1499,14 +1566,22 @@ html[data-cursor='custom'] [contenteditable] {
   color: var(--accent);
 }
 
+/*
+  Descripción a dos líneas con recorte. Con `white-space: nowrap` y
+  `text-overflow` la frase se cortaba siempre por el mismo sitio —«El portfolio
+  disfrazado de mostrador fr…»— y se leía como texto estropeado. A dos líneas cabe
+  la idea y elipsis solo aparece cuando de verdad no cabe.
+*/
 .dropdown__description {
+  display: -webkit-box;
   margin-top: 1px;
+  overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--fs-meta);
   line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .dropdown__icon {
@@ -1830,10 +1905,6 @@ html[data-cursor='custom'] [contenteditable] {
   ancho restante y es el unico que desplaza.
 */
 @media (width >= 64rem) {
-  :root {
-    --side-nav-inset: var(--sp-6);
-  }
-
   .layout {
     display: grid;
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
@@ -1883,15 +1954,6 @@ html[data-cursor='custom'] [contenteditable] {
     overflow: visible;
   }
 
-  /*
-    En escritorio el indicador se traduce en vertical y su posición se mide
-    respecto a esta lista, que es el contenedor posicionado. Sin esto seguiría
-    anclándose al `li` equivocado.
-  */
-  .side-nav__list > li {
-    position: static;
-  }
-
   .side-nav__link {
     padding-block: var(--sp-2);
   }
@@ -1908,7 +1970,7 @@ html[data-cursor='custom'] [contenteditable] {
     gap: var(--sp-1);
   }
 
-  .content {
+.content {
     position: relative;
     height: 100%;
     max-width: var(--content-max);
@@ -1916,45 +1978,19 @@ html[data-cursor='custom'] [contenteditable] {
     overflow-y: auto;
     scroll-padding-top: var(--sp-4);
     /*
-      Barra propia en vez de la del navegador. Se ocultan las dos implementaciones
-      —la estandar y la de WebKit— porque `scrollbar-width: none` no basta en
-      Safari, y con las dos visibles habría dos indicadores.
+      Sin barra de scroll. Se ocultan las dos implementaciones —la estándar y la
+      de WebKit— porque `scrollbar-width: none` no basta en Safari, y con las dos
+      visibles habría dos.
+
+      Hubo un indicador propio de 2px durante un turno; se quitó porque acababa
+      atravesando la columna central del texto y cualquier marca de progreso sobre
+      el contenido estorba más de lo que orienta.
     */
     scrollbar-width: none;
   }
 
   .content::-webkit-scrollbar {
     display: none;
-  }
-
-  /*
-    Indicador de scroll. Vive en el canalón de la derecha, dentro del padding
-    lateral del área de contenido, así que no cruza el texto y no hace falta
-    ponerla en un plano inferior: un `::after` posicionado se pinta siempre por
-    encima de los hijos que no lo están, y bajarlo con `z-index: -1` lo mandaría
-    detrás del fondo de la página. `pointer-events: none` porque en una barra de
-    desplazamiento no hay nada que pulsar.
-  */
-  .content::after {
-    content: '';
-    position: absolute;
-    top: var(--thumb-y, 0);
-    right: var(--thumb-inset, 8px);
-    width: 2px;
-    height: var(--thumb-h, 0);
-    border-radius: 1px;
-    background: var(--accent);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--t-panel) var(--ease);
-  }
-
-  .content[data-thumb='true']::after {
-    opacity: 0.4;
-  }
-
-  .content:hover::after {
-    opacity: 0.75;
   }
 
   .section {

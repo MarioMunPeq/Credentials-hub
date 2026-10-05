@@ -61,7 +61,7 @@ export const portfolioLinks: PortfolioLink[] = [
     label: 'Papers, Please',
     url: 'https://mariomunpeq.github.io/Papers-Please-Portfolio/',
     group: 'sites',
-    tag: { es: 'Puesto de inspección', en: 'Inspection desk' },
+    tag: { es: 'Frontera', en: 'Border' },
     description: {
       es: 'El portfolio disfrazado de mostrador fronterizo',
       en: 'The portfolio disguised as a border checkpoint',
@@ -72,7 +72,7 @@ export const portfolioLinks: PortfolioLink[] = [
     label: 'Minecraft',
     url: 'https://mariomunpeq.github.io/Minecraft-Portfolio/',
     group: 'sites',
-    tag: { es: 'Mundo explorable', en: 'Explorable world' },
+    tag: { es: 'Mundo', en: 'World' },
     description: {
       es: 'Todo el portfolio dentro de un mundo por recorrer',
       en: 'The whole portfolio inside a world to walk around',
@@ -94,7 +94,7 @@ export const portfolioLinks: PortfolioLink[] = [
     label: 'Euromario',
     url: 'https://mariomunpeq.github.io/Euromario/',
     group: 'sites',
-    tag: { es: 'App con IA', en: 'AI app' },
+    tag: { es: 'IA', en: 'AI' },
     description: {
       es: 'Agregador de noticias de videojuegos con IA',
       en: 'Video game news aggregator powered by AI',

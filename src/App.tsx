@@ -6,7 +6,6 @@ import { PdfModal } from './components/PdfModal'
 import { CursorReticle } from './components/CursorReticle'
 import { ErrorState, EmptyState, LoadingState } from './components/states'
 import { useCertificates } from './hooks/useCertificates'
-import { useScrollThumb } from './hooks/useScrollThumb'
 import { useRevealOnScroll } from './hooks/useRevealOnScroll'
 import { useLanguage } from './context/language-context'
 import { site } from './config/site'
@@ -30,8 +29,6 @@ export function App() {
   // necesita conocerla.
   const contentRef = useRef<HTMLElement>(null)
 
-  // Indicador de scroll propio: sustituye a la barra esmeralda del navegador.
-  useScrollThumb(contentRef)
   // Las entradas de certificado aparecen cuando entran en pantalla.
   useRevealOnScroll(contentRef)
 

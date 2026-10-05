@@ -1,7 +1,7 @@
 import { useMemo, type CSSProperties } from 'react'
 import { useLanguage } from '../context/language-context'
 import { formatHours } from '../utils/dates'
-import { buildSections, TRAJECTORY_ID } from '../utils/certificates'
+import { buildSections, indexLabel, TRAJECTORY_ID } from '../utils/certificates'
 import type { ProcessedCertificate } from '../types/certificate'
 
 interface CredentialIndexProps {
@@ -36,12 +36,14 @@ interface CredentialIndexProps {
 export function CredentialIndex({ certificates, onSelect }: CredentialIndexProps) {
   const { language, t } = useLanguage()
 
+  const sections = useMemo(() => buildSections(certificates, language), [certificates, language])
+
   const items = useMemo(
     () =>
-      buildSections(certificates, language)
+      sections
         .flatMap((section) => section.items.map((item) => ({ item, title: section.title })))
         .sort((a, b) => a.item.certificate.sortKey - b.item.certificate.sortKey),
-    [certificates, language],
+    [sections],
   )
 
   const totalHours = certificates.reduce((sum, c) => sum + c.hours, 0)
@@ -49,7 +51,15 @@ export function CredentialIndex({ certificates, onSelect }: CredentialIndexProps
   return (
     <section className="index entrada entrada--l2" id={TRAJECTORY_ID} aria-labelledby="index-title">
       <div className="index__head">
-        <span className="index__kicker mono">{t.trajectory.kicker}</span>
+        {/*
+          El número va en la línea del antetítulo, no como el número grande de
+          una sección. Así el resumen está numerado igual que las demás —y el
+          menú lateral y la cabecera dicen lo mismo— sin que la cabecera vuelva a
+          parecer la de una sección: el número va en cuerpo de metadatos, no a 28px.
+        */}
+        <span className="index__kicker mono">
+          {indexLabel(sections.length + 1)} · {t.trajectory.kicker}
+        </span>
         <h2 id="index-title" className="index__title">
           {t.trajectory.title}
         </h2>

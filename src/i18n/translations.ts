@@ -33,6 +33,14 @@ const es = {
   nav: {
     label: 'Secciones',
   },
+  section: {
+    /**
+     * Contador de una sección. Antes era un «3» suelto en la derecha de la
+     * cabecera: con tres columnas de entradas debajo, un numero solo no decia
+     * nada. Con la palabra al lado se entiende sin contexto.
+     */
+    count: (n: number) => (n === 1 ? '1 credencial' : `${n} credenciales`),
+  },
 
   /** Titulos de seccion. La clave coincide con `category` en el JSON. */
   sections: {
@@ -45,10 +53,10 @@ const es = {
 
   trajectory: {
     title: 'Resumen',
-    /** Antetítulo que declara que esto resume el contenido de abajo. */
+    /** Antetítulo que declara que esto resume el contenido de arriba. */
     kicker: 'En una línea',
     /** Frase que declara explícitamente que es un resumen de las secciones siguientes. */
-    summaryNote: 'Lo mismo que hay abajo, compacto y en orden. Cada ficha lleva a su entrada.',
+    summaryNote: 'Lo mismo que hay arriba, compacto y en orden. Cada ficha lleva a su entrada.',
     /** Pista del índice, junto al contador. */
     summaryHint: 'Pulsa una ficha para ir a su entrada',
     /** Etiqueta accesible del gráfico completo. */
@@ -132,6 +140,11 @@ const en: TranslationShape = {
 
   nav: {
     label: 'Sections',
+  },
+
+  section: {
+    /** Contador de una sección. Ver la nota en español. */
+    count: (n: number) => (n === 1 ? '1 credential' : `${n} credentials`),
   },
 
   sections: {

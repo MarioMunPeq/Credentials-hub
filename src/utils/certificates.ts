@@ -29,7 +29,7 @@ export const TRAJECTORY_ID = 'trajectory'
 /** Una seccion ya preparada para pintar. */
 export interface CertificateSection {
   category: string
-  /** Numero de indice visible: "02", "03"… La Trayectoria ocupa la 01. */
+  /** Numero de indice visible: "01", "02"… Las secciones empiezan en la 01. */
   number: string
   title: string
   id: string
@@ -148,7 +148,7 @@ export function buildSections(
       return {
         category,
         // La Trayectoria es la 01, asi que las secciones empiezan en la 02.
-        number: indexLabel(position + 2),
+        number: indexLabel(position + 1),
         title: sectionTitle(category, language),
         id: sectionId(category),
         items,

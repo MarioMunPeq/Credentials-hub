@@ -1,5 +1,6 @@
 import type { DisplayCertificate, ProcessedCertificate } from '../types/certificate'
 import type { CertificateSection } from '../utils/certificates'
+import { useLanguage } from '../context/language-context'
 import { CertificateEntry } from './CertificateEntry'
 
 interface CertificateSectionBlockProps {
@@ -25,6 +26,8 @@ export function CertificateSectionBlock({
   onPreview,
   highlightedId,
 }: CertificateSectionBlockProps) {
+  const { t } = useLanguage()
+
   return (
     <section
       id={section.id}
@@ -38,7 +41,7 @@ export function CertificateSectionBlock({
         <h2 id={`${section.id}-title`} className="section__title">
           {section.title}
         </h2>
-        <span className="section__count mono">{section.items.length}</span>
+        <span className="section__count mono">{t.section.count(section.items.length)}</span>
       </div>
 
       <div className="section__grid">
