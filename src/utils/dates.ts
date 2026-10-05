@@ -120,8 +120,15 @@ export function formatNumber(value: number, lang: Language): string {
   }).format(value)
 }
 
-/** "1.250 h" / "1,250 h". Devuelve `null` si no hay horas. */
+/**
+ * "1.250 h" / "1,250 h", o `null` si el certificado no declara horas.
+ *
+ * El espacio entre la cifra y la unidad es duro a propósito: con un espacio normal
+ * el navegador puede partir «450» y «h» entre dos líneas, que es exactamente lo
+ * que pasaba en el subtítulo del modal en móvil, donde quedaba una «h» sola al
+ * final de la línea.
+ */
 export function formatHours(hours: number, lang: Language, unit = 'h'): string | null {
   if (!Number.isFinite(hours) || hours <= 0) return null
-  return `${formatNumber(hours, lang)} ${unit}`
+return `${formatNumber(hours, lang)}${'\u00A0'}${unit}`
 }

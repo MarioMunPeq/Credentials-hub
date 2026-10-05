@@ -103,7 +103,7 @@ export function PdfModal({ certificate, onClose }: PdfModalProps) {
             </h2>
             <p className="modal__subtitle" id={labelId}>
               {certificate.issuer}
-              {hours ? ` · ${date} · ${hours}` : ` · ${date}`}
+              {hours ? `\u00A0· ${date}\u00A0· ${hours}` : `\u00A0· ${date}`}
             </p>
           </div>
 

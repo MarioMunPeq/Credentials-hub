@@ -819,6 +819,119 @@ html[data-cursor='custom'] [contenteditable] {
 
 /* ---------- 7. Barra lateral -------------------------------------------- */
 
+/*
+  Todo lo de este bloque es exclusivo de por debajo de 1024px, que es donde la
+  barra lateral deja de ser columna y pasa a ser cabecera. Vive aquí y no en las
+  reglas base para no poder tocar el escritorio: el breakpoint de escritorio
+  está declarado más abajo y sobrescribe `display` a `flex`, con lo que las áreas
+  de rejilla de aquí ya no aplican, pero las medidas de tipografía y los márgenes
+  sí.
+
+  El fallo que motivationa el bloque: la cabecera era una rejilla de dos columnas,
+  `minmax(0, 1fr) auto`, con la identidad y las herramientas en la misma fila. Las
+  herramientas —el botón de Portfolios con su contador, el selector de idioma y el
+  de tema— miden unos 245px, así que la identidad se quedaba con unos 145px y
+  "Mario Muñoz Pequeño" salía en tres líneas. Con una sola columna cada bloque
+  ocupa el ancho entero y el nombre sale en uno.
+*/
+@media (width < 64rem) {
+  .sidebar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'identity'
+      'tools'
+      'intro'
+      'nav'
+      'footer';
+    gap: var(--sp-3);
+  }
+
+  /*
+    Las herramientas en su propia fila y repartidas: el menú de Portfolios a la
+    izquierda, idioma y tema a la derecha. Antes iban apretadas contra el nombre en
+    una fila de dos columnas.
+  */
+  .sidebar__tools {
+    justify-content: space-between;
+    width: 100%;
+    gap: var(--sp-2);
+  }
+
+  .sidebar__name {
+    font-size: 1.625rem;
+    line-height: 1.15;
+  }
+
+  /*
+    La fila de secciones es un scroller horizontal. Se degrada con un degradado a
+    la derecha: sin él la última sección visible se corta a media palabra y parece
+    un texto mal cogido en vez de algo que sigue.
+  */
+  .side-nav__list {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  }
+
+  .side-nav__link {
+    padding-inline: var(--sp-2);
+    margin-inline: calc(var(--sp-2) * -1);
+  }
+
+  /*
+    La cabecera de sección lleva número, título y contador en la misma fila. Con
+    títulos largos en móvil el contador se estrujaba y se partía en dos líneas
+    ("3" arriba, "credenciales" abajo), descuadrado contra el título. Con
+    `flex-wrap` el contador baja entero a su propia línea cuando no cabe, y
+    `nowrap` evita que se parta por dentro.
+  */
+  .section__head {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .section__count {
+    white-space: nowrap;
+    margin-left: 0;
+    width: 100%;
+    text-align: right;
+  }
+
+  /* Menos aire entre secciones: 4rem de hueco se lee como una página vacía en
+     un viewport de 430px de alto. */
+  .sections {
+    gap: var(--sp-12);
+  }
+
+  /* El resumen conserva su margen propio, pero también reducido. */
+  .index {
+    margin-top: var(--sp-12);
+  }
+
+  /* Modal a pantalla casi completa, con margen, en vez de pegado a los bordes. */
+  .modal-overlay {
+    padding: var(--sp-2);
+  }
+
+  .modal {
+    border-radius: var(--radius-panel);
+  }
+
+  .modal__header {
+    padding: var(--sp-3) var(--sp-4);
+    gap: var(--sp-3);
+  }
+
+  /* A 18px el título del modal ocupaba cuatro líneas y empujaba el visor fuera de
+     pantalla. A 16px ocupa tres. */
+  .modal__title {
+    font-size: var(--fs-base);
+  }
+
+  .modal__subtitle {
+    font-size: var(--fs-meta);
+    line-height: 1.45;
+  }
+}
+
 .sidebar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1053,6 +1166,8 @@ html[data-cursor='custom'] [contenteditable] {
   margin-top: 8rem;
   margin-bottom: var(--sp-8);
 }
+
+/* En móvil el margen del resumen baja a 3rem, en el bloque de la barra lateral. */
 
 /*
   Siete fichas compactas en orden cronologico. No hay eje, ni bandas, ni barras:
