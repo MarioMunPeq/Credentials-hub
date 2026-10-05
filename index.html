@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<title>Certificaciones | Credentials Hub</title>
+    <meta
+      name="description"
+      content="Portfolio de certificaciones: títulos oficiales, tecnología, idiomas, PRL y formación en inteligencia artificial."
+    />
+    <script>
+      // Aplica el tema ANTES del primer paint: si se hiciera despues, la pagina
+      // apareceria un instante en el tema contrario (destello blanco en oscuro).
+      // Mismo orden de prioridad que src/context/preferences.ts:
+      // eleccion guardada -> preferencia del sistema -> modo oscuro.
+      ;(function () {
+        var theme = null
+        try {
+          var stored = localStorage.getItem('credentials-hub:theme') || ''
+          if (stored === 'light' || stored === 'dark') theme = stored
+          else if (stored === '"light"' || stored === '"dark"') theme = stored.slice(1, 7)
+        } catch (e) {
+          /* localStorage bloqueado: se usa la preferencia del sistema */
+        }
+        if (!theme) {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+        }
+        document.documentElement.dataset.theme = theme
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

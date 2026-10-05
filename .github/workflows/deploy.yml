@@ -1,0 +1,75 @@
+name: Desplegar en GitHub Pages
+
+# Publica en cada push a main. `workflow_dispatch` permite relanzarlo a mano
+# desde la pestaña Actions sin necesidad de hacer un commit vacio.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permite que el despliegue escriba los permisos de Pages y el estado del
+# despliegue. Sin esto, un repositorio con permisos restrictivos falla.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Nunca hay dos despliegues a la vez y se cancela el anterior: al cancelar el
+# antiguo, GitHub Pages mantiene el artefacto ya publicado en vez de dejar
+# la rama de Pages en un estado intermedio.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtener el codigo
+        uses: actions/checkout@v5
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        # `npm ci` usa package-lock.json y falla si no cuadra con package.json,
+        # lo que evita desplegar con versiones distintas a las probadas.
+        run: npm ci
+
+      - name: Comprobar tipos
+        run: npm run typecheck
+
+      - name: Analizar el codigo
+        run: npm run lint
+
+      - name: Compilar
+        run: npm run build
+        env:
+          # GitHub Pages sirve el proyecto en https://<usuario>.github.io/<repo>/.
+          # Se deriva del nombre real del repositorio para no tener que
+          # mantener el prefijo a mano en vite.config.ts.
+          # Si el repositorio se llama <usuario>.github.io, cambia este valor a "/".
+          SITE_BASE: ${{ format('/{0}/', github.event.repository.name) }}
+
+      - name: Subir el artefacto
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Publicar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

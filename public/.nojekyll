@@ -1,0 +1,2 @@
+# GitHub Pages ignora los ficheros y carpetas que empiezan por guion bajo.
+# Este marcador vacio evita que Jekyll intervenga al publicar `dist/`.

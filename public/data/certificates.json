@@ -1,0 +1,88 @@
+[
+  {
+    "id": "health-and-safety-during-teleworking",
+    "title": "Health and Safety During Teleworking",
+    "issuer": "ASPY Prevención",
+    "date": "2026-10-01",
+    "hours": 3,
+    "category": "prl",
+    "tags": ["prl", "teletrabajo", "salud laboral", "prevención", "on-line"],
+    "pdf": "certs/prl/health-and-safety-during-teleworking.pdf"
+  },
+  {
+    "id": "prl-consultant",
+    "title": "Prevención de Riesgos Laborales — Puesto de Consultant",
+    "issuer": "ASPY Prevención",
+    "date": "2026-09-25",
+    "hours": 2,
+    "category": "prl",
+    "tags": ["prl", "artículo 19", "consultant", "prevención", "consulta"],
+    "pdf": "certs/prl/prl-recurso-preventivo.pdf"
+  },
+  {
+    "id": "bootcamp-desarrollo-soluciones-ia",
+    "title": "Bootcamp en Desarrollo de Soluciones en Inteligencia Artificial",
+    "issuer": "Qualentum · Vass University · UNIR",
+    "date": "2025-03-20",
+    "hours": 450,
+    "category": "ia",
+    "tags": [
+      "python",
+      "machine learning",
+      "deep learning",
+      "modelos generativos",
+      "sklearn",
+      "pytorch",
+      "18 ECTS"
+    ],
+    "pdf": "certs/ia/bootcamp-inteligencia-artificial.pdf",
+    "verifyUrl": "https://verifirma.unir.net/CSV/280cca3f-90ea-47f2-81f5-e3f80dbd1d77"
+  },
+  {
+    "id": "trinity-ise-ii",
+    "title": "Inglés — Trinity ISE II (B2)",
+    "issuer": "Trinity College London",
+    "date": "2025-10",
+    "hours": null,
+    "category": "idiomas",
+    "tags": ["inglés", "b2", "ise ii", "trinity", "certificación"],
+    "pdf": "certs/idiomas/trinity-ise-ii-b2.pdf"
+  },
+  {
+    "id": "cfgs-desarrollo-aplicaciones-multiplataforma",
+    "title": "Técnico Superior en Desarrollo de Aplicaciones Multiplataforma",
+    "issuer": "IES Julián Marías",
+    "date": "2024-06-03",
+    "hours": null,
+    "category": "estudios",
+    "tags": [
+      "dam",
+      "multiplataforma",
+      "kotlin",
+      "android",
+      "120 ECTS",
+      "mención honorífica TFG"
+    ],
+    "pdf": "certs/estudios/cfgs-desarrollo-aplicaciones-multiplataforma.pdf"
+  },
+  {
+    "id": "cfgm-instalaciones-telecomunicaciones",
+    "title": "Técnico en Instalaciones de Telecomunicaciones",
+    "issuer": "IES La Merced",
+    "date": "2022-06-06",
+    "hours": null,
+    "category": "estudios",
+    "tags": ["grado medio", "telecomunicaciones", "fibra", "redes", "electrotecnia"],
+    "pdf": "certs/estudios/cfgm-instalaciones-telecomunicaciones.pdf"
+  },
+  {
+    "id": "titulo-graduado-eso",
+    "title": "Título de Graduado en Educación Secundaria Obligatoria",
+    "issuer": "Junta de Castilla y León",
+    "date": "2018-11-16",
+    "hours": null,
+    "category": "estudios",
+    "tags": ["eso", "secundaria", "graduado", "ies condesa eylo alfonso"],
+    "pdf": "certs/estudios/eso-titulo-graduado.pdf"
+  }
+]

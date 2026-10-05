@@ -1,0 +1,30 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.eslintcache
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# NOTA: los PDF de `public/certs/` SI deben subirse al repositorio, porque
+# GitHub Pages solo publica el contenido de `dist/`. Ocultarlos dejaria el sitio
+# sin certificados. Los PDF de ejemplo se regeneran con `npm run certs:placeholder`.
