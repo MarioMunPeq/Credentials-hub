@@ -112,19 +112,31 @@
   --content-max: 1800px;
   --sidebar-width: clamp(300px, 22vw, 420px);
 
-  --t-fast: 130ms;
-  --t-panel: 140ms;
+  --t-fast: 190ms;
+  --t-panel: 220ms;
+  /*
+    Duración de la apertura circular del tema. La tiene que conocer también
+    `useThemeReveal`, que la replica en su temporizador de seguridad.
+  */
+  --theme-reveal: 620ms;
+  /* Entrada de bloques y revelado al hacer scroll. */
+  --enter-rise: 620ms;
+  --reveal-rise: 520ms;
   --ease: cubic-bezier(0.2, 0, 0.2, 1);
+  /* Desvanecido con reborde, para entradas que suben. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
   /*
     Geometría de la trayectoria, en px. La banda tiene alto fijo porque ya no
-    hay etiquetas repartidas en carriles: el alto viene del contenido (el año
-    cuelga del eje), no del número de certificados. Por eso no depende de
-    cuántos haya ni de cuántas colisiones haya que resolver.
+    hay etiquetas repartidas en carriles: el alto viene del contenido, no del
+    número de certificados ni de cuántas colisiones haya que resolver.
+    `--trajectory-axis` es a la vez la línea base del eje y la altura máxima de
+    las barras, de modo que la barra más alta llega justo al borde superior.
   */
-  --trajectory-band: 74px;
-  /* Distancia del borde superior de la banda al eje. */
-  --trajectory-axis: 34px;
+  --trajectory-axis: 92px;
+  --trajectory-band: 122px;
+  /* Tinte de las columnas alternas del eje. */
+  --band-tint: rgb(255 255 255 / 1.5%);
 
   --font-serif: 'Newsreader Variable', 'Newsreader', ui-serif, Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
@@ -155,6 +167,7 @@
 
   --grid-fine: rgb(0 0 0 / 3%);
   --grid-bold: rgb(0 0 0 / 4.5%);
+  --band-tint: rgb(0 0 0 / 1.5%);
 
   /* En claro el cursor va en tinta, que es `--text` como en oscuro, y el contorno
      se invierte a blanco para seguir siendo un contorno. */
@@ -393,19 +406,21 @@ a {
     repeating-linear-gradient(to right, var(--grid-fine) 0 1px, transparent 1px 64px),
     repeating-linear-gradient(to bottom, var(--grid-fine) 0 1px, transparent 1px 64px);
   /*
-    Atenuacion radial hacia los bordes. Sin ella la rejilla se lee como papel de
-    cuadras y compite con el texto; asi se percibe como textura de fondo.
+    Sin máscara. Antes llevaba un `radial-gradient(ellipse 90% 80% at 40% 0%)`
+    que lo desvanecía hacia los bordes, y con eso la rejilla se leía como un
+    parche pegado en la parte alta en vez de como el fondo de la página. Cubierta
+    de borde a borde, con 2% y 3.5% de blanco, se queda como textura y no como
+    mancha.
   */
-  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 40% 0%, #000 30%, transparent 85%);
-  mask-image: radial-gradient(ellipse 90% 80% at 40% 0%, #000 30%, transparent 85%);
 }
 
 /* ---------- 4. Cursor personalizado -------------------------------------- */
 
 /*
   Cuatro corchetes en las esquinas de un cuadro de 36px, como el retículo de
-  autofocus de una cámara. El centro se deja vacío a propósito: es justo lo que
-  estás mirando, y taparlo sería un coste innecesario.
+  autofocus de una cámara, con un punto en el centro que respira. El centro no
+  queda del todo vacío: el corchete marca el encuadre y el punto marca la posición
+  exacta, y son dos lecturas distintas.
 
   **Legibilidad.** Aquí no se juega con el color. El problema de las versiones
   anteriores era que el esmeralda del cursor y el blanco del texto están casi en
@@ -417,13 +432,20 @@ a {
     1. Silueta propia. Cuatro barras finas de 2px tienen la forma de los trazos de
        las letras. Los corchetes en las esquinas no se confunden con nada.
     2. Contorno duro de 1px en las cuatro direcciones. Es el `keyline` de un
-       pegatina: aunque el corchété coincida en color con una letra que tenga
+       pegatina: aunque el corchete coincida en color con una letra que tenga
        debajo, el contorno lo despega. Se construye con cuatro `drop-shadow` de
        0px de desenfoque; uno solo difuso no daba contraste medible.
 
-  `--cursor-active` sube a blanco puro sobre lo pulsable. Sigue siendo del mismo
-  tono que el texto, pero un punto por encima de `--text`, así que se nota sin
-  tener que volver al esmeralda, que es justo el color con el que chocaba.
+  **Sobre lo pulsable, solo una cosa: que crece.** Se escala el conjunto desde el
+  centro, con una única transición y sin nada más. Antes el hover movía cada
+  corchete 4px en una dirección, con rebote, y además disparaba una onda que se
+  expandía aparte: cuatro movimiento distintos con rhythms distintos encima del
+  puntero se leían como un temblor y no como un estado. Ahora es un solo
+  `scale(1.28)` que se aplica a todo por igual, así que el cursor se abre centrado
+  sobre el puntero y nada se mueve de sitio.
+
+  El latido de reposo se queda, pero con su amplitud de siempre: es lo que hace
+  que el cursor esté vivo sin llamar la atención.
 
   El cursor del sistema se oculta con una especificidad mayor que la de
   `button { cursor: pointer }`. Con `body { cursor: none }` no funcionaba:
@@ -449,11 +471,68 @@ a {
 
 .cursor-reticle[data-visible='true'] {
   opacity: 1;
+  filter: drop-shadow(1px 0 0 var(--cursor-halo))
+    drop-shadow(-1px 0 0 var(--cursor-halo))
+    drop-shadow(0 1px 0 var(--cursor-halo))
+    drop-shadow(0 -1px 0 var(--cursor-halo));
 }
 
 /*
-  Cada corchetelate en su esquina con `--dx`/`--dy` como dirección, y los cuatro
-  comparten una sola animacion. Los retardos son negativos: asi arrancan cada uno
+  Envoltorio del escalado. Vive aparte de la raíz a propósito: la raíz lleva el
+  `transform: translate3d()` que se escribe en cada `pointermove`, y `scale` se
+  compone *después* de `transform`, de modo que puestas las dos en el mismo
+  elemento el escalado iría en coordenadas locales y el cursor se movería de
+  sitio en vez de crecer. Con dos elementos, cada uno lleva una cosa.
+*/
+.cursor-reticle__scale {
+  position: absolute;
+  inset: 0;
+  transform: scale(1);
+  transition: transform 190ms var(--ease);
+}
+
+.cursor-reticle[data-active='true'] .cursor-reticle__scale {
+  transform: scale(1.28);
+}
+
+/* Al pulsar se contrae un poco: el gesto de hundir el clic. */
+.cursor-reticle[data-pressed='true'] .cursor-reticle__scale {
+  transform: scale(1.1);
+}
+
+/*
+  Núcleo: el punto que respira. Los corchetes dan la silueta y el punto da la
+  posición exacta. Su ciclo va desfasado del de los corchetes, para que los dos
+  movimientos no se lean como uno solo.
+*/
+.cursor-reticle__core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: core-pulse 2.6s var(--ease) infinite;
+}
+
+@keyframes core-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/*
+  Cada corchete late en su esquina con `--dx`/`--dy` como dirección, y los cuatro
+  comparten una sola animación. Los retardos son negativos: así arrancan cada uno
   en un punto distinto del ciclo en lugar de latir a la vez, que es lo que hace
   que un movimiento sincronizado se lea como un parpadeo y uno desfasado se lea
   como algo vivo.
@@ -463,18 +542,15 @@ a {
   width: 12px;
   height: 12px;
   border: 2px solid currentColor;
-  --dx: 0px;
-  --dy: 0px;
+  --dx: 1.5px;
+  --dy: 1.5px;
   animation: cursor-drift 4.4s var(--ease) infinite;
   animation-delay: var(--delay, 0s);
-  transition: border-width 120ms var(--ease);
 }
 
 .cursor-reticle__corner--tl {
   top: 0;
   left: 0;
-  --dx: 1.5px;
-  --dy: 1.5px;
   --delay: 0s;
   border-right: 0;
   border-bottom: 0;
@@ -484,7 +560,6 @@ a {
   top: 0;
   right: 0;
   --dx: -1.5px;
-  --dy: 1.5px;
   --delay: -1.1s;
   border-bottom: 0;
   border-left: 0;
@@ -493,7 +568,6 @@ a {
 .cursor-reticle__corner--bl {
   bottom: 0;
   left: 0;
-  --dx: 1.5px;
   --dy: -1.5px;
   --delay: -2.2s;
   border-top: 0;
@@ -513,7 +587,7 @@ a {
 /*
   Latido. La caja respira entre 36px y unos 33: los corchetes se separan un poco
   hacia dentro y vuelven a su esquina. Un trazo de 1,5px es casi imperceptible
-  quieto, asi que la amplitud es pequeña a proposito: se nota el movimiento, no
+  quieto, así que la amplitud es pequeña a propósito: se nota el movimiento, no
   el desplazamiento.
 */
 @keyframes cursor-drift {
@@ -527,56 +601,15 @@ a {
   }
 }
 
-/* Contorno duro de 1px: cuatro sombras sin desenfoque, una por dirección. */
-.cursor-reticle[data-visible='true'] {
-  filter: drop-shadow(1px 0 0 var(--cursor-halo))
-    drop-shadow(-1px 0 0 var(--cursor-halo))
-    drop-shadow(0 1px 0 var(--cursor-halo))
-    drop-shadow(0 -1px 0 var(--cursor-halo));
-}
-
-/*
-  Sobre lo pulsable el latido se acelera y duplica amplitud, y el trazo sube a
-  blanco puro. Sigue siendo el mismo tono que el texto, un punto mas claro: el
-  cambio de ritmo es lo que comunica el estado, no el color.
-*/
+/* Sobre lo pulsable, el trazo sube a blanco puro: sigue siendo el tono del
+   texto, un punto más claro. Es el único cambio de color que hace falta. */
 .cursor-reticle[data-active='true'] {
   color: var(--cursor-active);
 }
 
-.cursor-reticle[data-active='true'] .cursor-reticle__corner {
-  animation-duration: 1.15s;
-}
-
-.cursor-reticle[data-active='true'] .cursor-reticle__corner--tl {
-  --dx: 4px;
-  --dy: 4px;
-}
-
-.cursor-reticle[data-active='true'] .cursor-reticle__corner--tr {
-  --dx: -4px;
-  --dy: 4px;
-}
-
-.cursor-reticle[data-active='true'] .cursor-reticle__corner--bl {
-  --dx: 4px;
-  --dy: -4px;
-}
-
-.cursor-reticle[data-active='true'] .cursor-reticle__corner--br {
-  --dx: -4px;
-  --dy: -4px;
-}
-
-/* Al pulsar el latido se congela y el trazo engorda: el punto queda fijado. */
-.cursor-reticle[data-pressed='true'] .cursor-reticle__corner {
-  animation-play-state: paused;
-  border-width: 3px;
-}
-
 /* Sobre un campo de texto solo queda la barra vertical: es el cursor de
    inserción, y cuatro corchetes estorban entre caracteres. Un solo corchete se
-   reescribe como la barra; los otros tres se retiran. */
+   reescribe como la barra; los otros tres y el núcleo se retiran. */
 .cursor-reticle[data-text='true'] {
   width: 2px;
   height: 26px;
@@ -584,13 +617,17 @@ a {
   color: var(--cursor-active);
 }
 
-.cursor-reticle[data-text='true'] .cursor-reticle__corner {
-  animation: none;
-  --dx: 0px;
-  --dy: 0px;
+.cursor-reticle[data-text='true'] .cursor-reticle__scale {
+  transform: scale(1);
 }
 
-.cursor-reticle[data-text='true'] .cursor-reticle__corner:not(.cursor-reticle__corner--bl) {
+.cursor-reticle[data-text='true'] .cursor-reticle__corner,
+.cursor-reticle[data-text='true'] .cursor-reticle__core {
+  animation: none;
+}
+
+.cursor-reticle[data-text='true'] .cursor-reticle__corner:not(.cursor-reticle__corner--bl),
+.cursor-reticle[data-text='true'] .cursor-reticle__core {
   display: none;
 }
 
@@ -621,21 +658,59 @@ html[data-cursor='custom'] [contenteditable] {
 
 @media (prefers-reduced-motion: reduce) {
   .cursor-reticle,
+  .cursor-reticle__scale,
   .cursor-reticle__corner {
     transition-duration: 0.01ms;
   }
 
-  /*
-    Sin animación los corchetes se quedan en su esquina, sin transformation, y el
-    estado activo solo se distingue por el trazo más blanco. Es la conducta
-    correcta: `--dx` solo lo consume el keyframe, así que al apagarlo no queda
-    ninguna amplitud residual que conservar.
-  */
-  .cursor-reticle__corner {
+  /* Se apagan el latido de los corchetes y el pulso del núcleo. La silueta y el
+     escalado al pasar por lo pulsable se conservan, así que el cursor sigue
+     comunicando el estado sin depender del movimiento. */
+  .cursor-reticle__corner,
+  .cursor-reticle__core {
     animation: none;
   }
+
+  .cursor-reticle__core {
+    opacity: 0.7;
+  }
 }
-/* ---------- 5. Rejilla de dos paneles ----------------------------------- */
+/* ---------- 5. Apertura circular del tema -------------------------------- */
+
+
+
+/*
+  Rectángulo del color de destino que se agranda en círculo desde el botón de
+  tema. No se anima ningún color de la página: mientras el círculo crece se ve la
+  página vieja recortándose, y al cubrirlo todo se cambia el tema por debajo. Es
+  lo único que evita el collage parpadeante de un `transition` sobre `body`.
+
+  El color sale de los propios tokens: `data-theme` es un selector de atributo, no
+  un selector de raíz, así que puesto en este elemento le aplica el bloque entero
+  del tema de destino — `--bg` y `color-scheme` incluidos — sin duplicar aquí ni
+  un solo valor. Por eso el componente lo añade al rectángulo y no a la raíz.
+*/
+.theme-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  background: var(--bg);
+  clip-path: circle(0 at var(--reveal-x) var(--reveal-y));
+  transition: clip-path var(--theme-reveal) var(--ease);
+}
+
+.theme-reveal[data-expanded='true'] {
+  clip-path: circle(var(--reveal-radius) at var(--reveal-x) var(--reveal-y));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-reveal {
+    display: none;
+  }
+}
+
+/* ---------- 6. Rejilla de dos paneles ----------------------------------- */
 
 .layout {
   position: relative;
@@ -645,7 +720,7 @@ html[data-cursor='custom'] [contenteditable] {
   min-height: 100dvh;
 }
 
-/* ---------- 6. Barra lateral -------------------------------------------- */
+/* ---------- 7. Barra lateral -------------------------------------------- */
 
 .sidebar {
   display: grid;
@@ -654,7 +729,6 @@ html[data-cursor='custom'] [contenteditable] {
     'identity tools'
     'intro   intro'
     'nav     nav'
-    'search  search'
     'footer  footer';
   align-content: start;
   gap: var(--sp-4) var(--sp-3);
@@ -696,10 +770,6 @@ html[data-cursor='custom'] [contenteditable] {
   border-bottom: 1px solid var(--border);
 }
 
-.sidebar__search {
-  grid-area: search;
-}
-
 .sidebar__footer {
   grid-area: footer;
 }
@@ -721,8 +791,12 @@ html[data-cursor='custom'] [contenteditable] {
 
 /* Navegación: en móvil es una fila con scroll, en escritorio una columna. */
 .side-nav__list {
+  position: relative;
   display: flex;
   gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -746,17 +820,38 @@ html[data-cursor='custom'] [contenteditable] {
   transition: color var(--t-fast) var(--ease);
 }
 
-/* Marca de la sección activa: línea corta de 2px pegada al borde. */
-.side-nav__link::before {
-  content: '';
+/*
+  Indicador de la sección activa: un único elemento que se traslada. Antes cada
+  enlace llevaba su propio `::before` que crecía desde cero, así que al cambiar
+  de sección se veían dos animaciones a la vez en sitios distintos —la anterior
+  encogiendo y la nueva creciendo— y eso se lee como un parpadeo, no como un
+  movimiento. Aquí solo se mueve `--indicator-y`, y como la transición es del
+  mismo `transform`, el recorrido se ve entero.
+
+  Son 2px de alto, no el alto del enlace: con `height: var(--indicator-h)` el
+  indicador se convertía en un bloque de 20×44px de esmeralda, que era peor que
+  la línea que sustituye. El alto del enlace se usa solo para centrarlo.
+*/
+.side-nav__indicator {
   position: absolute;
-  top: 50%;
+  top: 0;
   left: calc(-1 * var(--side-nav-inset) + 2px);
-  width: 0;
+  width: 1.25rem;
   height: 2px;
+  border-radius: 1px;
   background: var(--accent);
-  transform: translateY(-50%);
-  transition: width var(--t-fast) var(--ease);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(var(--indicator-y, 0));
+  transition:
+    transform 320ms var(--ease-out),
+    opacity var(--t-fast) var(--ease);
+}
+
+@media (width >= 64rem) {
+  .side-nav__indicator {
+    opacity: 1;
+  }
 }
 
 .side-nav__number {
@@ -773,8 +868,27 @@ html[data-cursor='custom'] [contenteditable] {
   color: var(--text);
 }
 
-.side-nav__link[aria-current='true']::before {
-  width: 1.25rem;
+/*
+  En móvil la lista es una fila con scroll y un indicador que se traslada en
+  vertical no tiene sitio: ahí el subrayado lo pone cada enlace, con `opacity` en
+  lugar de con `width` para que no haya medida que recalcular.
+*/
+@media (width < 64rem) {
+  .side-nav__link::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 2px;
+    left: 0;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity var(--t-fast) var(--ease);
+  }
+
+  .side-nav__link[aria-current='true']::before {
+    opacity: 1;
+  }
 }
 
 .side-nav__link[aria-current='true'] .side-nav__number {
@@ -842,79 +956,6 @@ html[data-cursor='custom'] [contenteditable] {
   color: var(--text);
 }
 
-/* Buscador: solo linea inferior, sin caja. */
-.search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border-strong);
-  transition: border-color var(--t-fast) var(--ease);
-}
-
-.search:focus-within {
-  border-bottom-color: var(--accent);
-}
-
-.search__icon {
-  flex: none;
-  color: var(--text-faint);
-  font-size: 0.9rem;
-  transition: color var(--t-fast) var(--ease);
-}
-
-.search:focus-within .search__icon {
-  color: var(--accent);
-}
-
-.search__input {
-  width: 100%;
-  min-width: 0;
-  padding: var(--sp-2) var(--sp-2);
-  border: 0;
-  background: none;
-  font-size: var(--fs-small);
-  line-height: 1.4;
-}
-
-.search__input:focus {
-  outline: none;
-}
-
-.search__input::placeholder {
-  color: var(--text-faint);
-}
-
-.search__input::-webkit-search-cancel-button {
-  appearance: none;
-}
-
-.search__clear,
-.search__shortcut {
-  flex: none;
-  display: grid;
-  place-items: center;
-  min-width: 1.5rem;
-  min-height: var(--tap);
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  line-height: 1;
-}
-
-.search__clear {
-  border-radius: var(--radius);
-  transition: color var(--t-fast) var(--ease);
-}
-
-.search__clear:hover {
-  color: var(--text);
-}
-
-/* Pista del atajo "/": etiqueta discreta, no un badge. */
-.search__shortcut {
-  font-family: var(--font-mono);
-  opacity: 0.7;
-}
-
 .side-footer {
   display: flex;
   flex-wrap: wrap;
@@ -936,7 +977,7 @@ html[data-cursor='custom'] [contenteditable] {
   color: var(--accent);
 }
 
-/* ---------- 7. Area de contenido --------------------------------------- */
+/* ---------- 8. Area de contenido --------------------------------------- */
 
 .content {
   position: relative;
@@ -947,16 +988,163 @@ html[data-cursor='custom'] [contenteditable] {
   display: flex;
   flex-direction: column;
   gap: var(--sp-16);
-  margin-top: var(--sp-20);
 }
 
-/* ---------- 8. Trayectoria --------------------------------------------- */
+/* ---------- 9. Indice de credenciales ------------------------------------ */
 
-.trajectory {
-  margin-bottom: var(--sp-4);
+.index {
+  margin-bottom: var(--sp-8);
 }
 
-.trajectory__head,
+/*
+  Siete fichas compactas en orden cronologico. No hay eje, ni bandas, ni barras:
+  despues de tres versiones de grafico, lo que queda es un indice. Se consulta, no
+  se mira, y por eso no puede quedarse vacio ni leerse de dos maneras.
+
+  La rejilla usa `auto-fit` y no `auto-fill`: con siete elementos `auto-fill`
+  dejaria huecos fantasma a la derecha de la ultima fila, mientras que `auto-fit`
+  estira las fichas para ocupar el ancho disponible.
+*/
+/*
+  Cabecera del resumen. Deliberadamente **no** usa `.section__head`: las secciones
+  02 a 05 llevan un índice grande y un contador, y si el resumen compartiera
+  maquetación con ellas se leería como una sección más, con el mismo peso. Aquí el
+  título va en cuerpo de texto, sin número y sin filete, con un antetítulo que
+  dice lo que es. La diferencia de escala es la que hace que se lea como resumen
+  en lugar de como contenido nuevo.
+*/
+.index__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  max-width: 62ch;
+}
+
+.index__kicker {
+  color: var(--accent);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.index__title {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.index__note {
+  color: var(--text-secondary);
+  font-size: var(--fs-small);
+  line-height: 1.5;
+}
+
+.index__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.index__summary {
+  color: var(--text-faint);
+  font-size: var(--fs-meta);
+}
+
+.index__hint {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  opacity: 0.7;
+}
+
+.index__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: 0;
+  list-style: none;
+}
+
+.index__item {
+  display: grid;
+  /*
+    Filas: año, nombre, horas y categoría. La segunda tiene `1fr` para que el
+    nombre ocupe el hueco sobrante y empuje la categoría al fondo de todas las
+    fichas. Con `auto` la línea de categoría sube o baja según quantas líneas
+    ocupe el título, y las siete ficam descuadradas entre sí.
+  */
+  grid-template-rows: auto 1fr auto auto;
+  align-content: start;
+  width: 100%;
+  height: 100%;
+  min-height: 7.5rem;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+
+.index__item:hover,
+.index__item:focus-visible {
+  border-color: var(--accent-dim);
+  background: var(--surface);
+  transform: translateY(-2px);
+}
+
+.index__year {
+  color: var(--accent);
+  font-size: var(--fs-meta);
+  line-height: 1.2;
+  opacity: 0.7;
+}
+
+.index__name {
+  font-size: var(--fs-small);
+  font-weight: 500;
+  line-height: 1.35;
+  /*
+    `break-word`, no `anywhere`. Con `anywhere` el navegador parte la palabra
+    aunque haya sitio de sobra: "CFGM Telecomunicaciones" salía como
+    "Telecomunicacione" + "s". `break-word` solo parte si la palabra no cabe
+    entera, que es justo cuando no hay otra opción.
+  */
+  overflow-wrap: break-word;
+}
+
+.index__meta {
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: var(--fs-meta);
+  line-height: 1.2;
+}
+
+.index__category {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+}
+/* ---------- 10. Secciones ------------------------------------------------ */
+
+/*
+  Cabecera de sección: número, título y contador en una sola línea.
+  `align-items: baseline` alinea el número con la línea base del título en vez de
+  con su caja, que es lo que hace que un 28px y un 40px parezcan la misma línea.
+*/
 .section__head {
   display: flex;
   align-items: baseline;
@@ -964,215 +1152,6 @@ html[data-cursor='custom'] [contenteditable] {
   padding-bottom: var(--sp-3);
   border-bottom: 1px solid var(--border);
 }
-
-.trajectory__range {
-  margin-left: auto;
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-}
-
-.trajectory__viewport {
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-}
-
-.trajectory__viewport::-webkit-scrollbar {
-  display: none;
-}
-
-.trajectory__track {
-  position: relative;
-  height: var(--trajectory-band);
-  margin-inline: auto;
-}
-
-/* Eje temporal. */
-.trajectory__axis {
-  position: absolute;
-  right: 0;
-  left: 0;
-  top: var(--trajectory-axis);
-  height: 1px;
-  background: var(--border-strong);
-}
-
-/*
-  Marcas de año. El contenedor abarca toda la banda, así que las tres piezas se
-  anclan a SU BORDE SUPERIOR y de ahí se miden hacia el eje. Sin etiquetas
-  alrededor ya no hace falta ninguna holgura especial: basta con separar la
-  cifra del eje lo que ocupa su line-height.
-*/
-.trajectory__year {
-  position: absolute;
-  top: 0;
-  height: var(--trajectory-band);
-  transform: translateX(-0.5px);
-}
-
-.trajectory__tick {
-  position: absolute;
-  top: calc(var(--trajectory-axis) - 5px);
-  left: -2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--border-strong);
-}
-
-.trajectory__year-label {
-  position: absolute;
-  top: calc(var(--trajectory-axis) + 14px);
-  left: 0;
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  line-height: 1.2;
-  white-space: nowrap;
-  transform: translateX(-50%);
-}
-
-/*
-  La etiqueta se centra sobre su tick, pero en los extremos eso la saca del eje:
-  la primera se recortaba por la izquierda y se leía "18" en lugar de "2018". Se
-  desplaza hacia dentro en lugar de recentrarla, para no desalinearla del tick.
-*/
-.trajectory__year[data-edge='start'] .trajectory__year-label {
-  transform: translateX(0);
-}
-
-.trajectory__year[data-edge='end'] .trajectory__year-label {
-  transform: translateX(-100%);
-}
-
-/*
-  Guía de separación. Solo aparece cuando dos certificados están tan juntos que
-  el punto se ha tenido que desplazar, y une la posición real por la fecha con
-  la dibujada: sin ella, el eje estaría mintiendo sobre esas dos fechas.
-*/
-.trajectory__lead {
-  position: absolute;
-  top: var(--trajectory-axis);
-  height: 1px;
-  background: var(--accent-dim);
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.trajectory__lead--dimmed {
-  opacity: 0.15;
-}
-
-/*
-  Puntos. Todos del mismo tamaño: el diámetro ya no codifica las horas. Se leen
-  como anillo, no como disco, con el relleno del fondo.
-*/
-.trajectory__dot {
-  position: absolute;
-  top: var(--trajectory-axis);
-  padding: 0;
-  border: 2px solid var(--accent-dim);
-  border-radius: 50%;
-  background: var(--bg);
-  transform: translate(-50%, -50%);
-  transition:
-    background-color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease),
-    opacity var(--t-fast) var(--ease);
-}
-
-.trajectory__dot:hover,
-.trajectory__dot:focus-visible,
-.trajectory__dot--selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-wash);
-}
-
-.trajectory__dot--dimmed {
-  opacity: 0.25;
-}
-
-.trajectory__hint {
-  margin-top: var(--sp-2);
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  transition: opacity var(--t-fast) var(--ease);
-}
-
-.trajectory__hint--hidden {
-  opacity: 0;
-}
-
-/*
-  Ficha de detalle. Va siempre en el mismo sitio y con la misma altura mínima, de
-  forma que el contenido que cambia al mover el ratón no desplaza nada de lo que
-  hay alrededor. El borde superior hace de regla y separa el gráfico del texto.
-*/
-.trajectory__card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-6);
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--border);
-}
-
-.trajectory__card-body {
-  min-width: 0;
-}
-
-.trajectory__card-meta {
-  color: var(--text-faint);
-  font-size: var(--fs-meta);
-  line-height: 1.2;
-}
-
-.trajectory__card-title {
-  margin-top: 2px;
-  font-size: var(--fs-entry);
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.trajectory__card-issuer {
-  margin-top: 1px;
-  color: var(--text-secondary);
-  font-size: var(--fs-small);
-  line-height: 1.35;
-}
-
-.trajectory__card-hint {
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: var(--fs-small);
-  line-height: 1.35;
-}
-
-.trajectory__card-link {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 0.4em;
-  color: var(--accent);
-  font-size: var(--fs-small);
-  white-space: nowrap;
-}
-
-.trajectory__card-link span {
-  transition: transform var(--t-fast) var(--ease);
-}
-
-.trajectory__card-link:hover span,
-.trajectory__card-link:focus-visible span {
-  transform: translateX(3px);
-}
-/* ---------- 9. Secciones ------------------------------------------------ */
 
 .section__index {
   color: var(--accent);
@@ -1211,7 +1190,7 @@ html[data-cursor='custom'] [contenteditable] {
   border-top: 0;
 }
 
-/* ---------- 10. Entrada -------------------------------------------------- */
+/* ---------- 11. Entrada -------------------------------------------------- */
 
 .entry {
   position: relative;
@@ -1346,7 +1325,7 @@ html[data-cursor='custom'] [contenteditable] {
   }
 }
 
-/* ---------- 11. Desplegable de portfolios ------------------------------- */
+/* ---------- 12. Desplegable de portfolios ------------------------------- */
 
 .dropdown {
   position: relative;
@@ -1565,7 +1544,7 @@ html[data-cursor='custom'] [contenteditable] {
   }
 }
 
-/* ---------- 12. Modal y miniatura de PDF -------------------------------- */
+/* ---------- 13. Modal y miniatura de PDF -------------------------------- */
 
 .modal-overlay {
   position: fixed;
@@ -1700,7 +1679,7 @@ html[data-cursor='custom'] [contenteditable] {
   }
 }
 
-/* ---------- 13. Estados ------------------------------------------------- */
+/* ---------- 14. Estados ------------------------------------------------- */
 
 .state {
   padding-block: var(--sp-20);
@@ -1748,7 +1727,96 @@ html[data-cursor='custom'] [contenteditable] {
   }
 }
 
-/* ---------- 14. Consultas de medios ------------------------------------- */
+/* ---------- 15. Consultas de medios ------------------------------------- */
+
+/*
+  Entrada y revelado.
+  ----------------------------------------------------------------------------
+  Antes de esto la pagina aparecia de golpe a opacidad completa en el primer
+  fotograma: correcta, pero inerte. Estas dos reglas la hacen montarse sola.
+
+  - Entrada: los bloques principales --cabecera lateral, indice, cabeceras de
+    seccion-- suben y aparecen escalonados al cargar.
+  - Revelado: las entradas de certificado aparecen cuando entran en pantalla, no
+    antes. Contenido por hover no es lo mismo que contenido que se revela.
+
+  El retardo sale siempre de `--enter-index`, que lo pone el propio elemento segun
+  su posicion: en el indice lo hace cada boton y en las entradas
+  `CertificateEntry`.
+
+  **El estado oculto solo se aplica con la clase `motion-ready` en `<html>`.** Si
+  el JavaScript no llegara a ejecutarse, o fallara antes, la pagina se quedaria
+  invisible: sin contenido no hay nada que depurar. La clase la pone `App` en un
+  efecto, de modo que a partir de ahi ya se puede arriesgar.
+
+  Con `prefers-reduced-motion` el bloque final pone las duraciones a 0,01ms, con
+  lo que la entrada se resuelve en el primer fotograma y el revelado tambien.
+*/
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.motion-ready .entrada {
+  animation: rise var(--enter-rise) var(--ease-out) backwards;
+  animation-delay: calc(var(--enter-index, 0) * 70ms);
+}
+
+.motion-ready .entrada--l1 {
+  animation-delay: 0ms;
+}
+
+.motion-ready .entrada--l2 {
+  animation-delay: 90ms;
+}
+
+.motion-ready .entrada--l3 {
+  animation-delay: 180ms;
+}
+
+.motion-ready .revelable {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity var(--reveal-rise) var(--ease-out),
+    transform var(--reveal-rise) var(--ease-out);
+}
+
+/*
+  Las entradas arrancan 70ms después que la cabecera de su sección. Sin ese
+  margen la cabecera y la primera entrada salen a la vez, y el escalonado dentro
+  de la rejilla no se percibe: la sección se revela de golpe en vez de por capas.
+*/
+.motion-ready .revelable--item {
+  transition-delay: calc(70ms + var(--enter-index, 0) * 55ms);
+}
+
+.motion-ready .revelable[data-visible='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-ready .entrada {
+    animation: none;
+  }
+
+  .motion-ready .revelable,
+  .motion-ready .revelable--item {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
 
 @media (width >= 40rem) {
   :root {
@@ -1801,12 +1869,8 @@ html[data-cursor='custom'] [contenteditable] {
     max-width: 38ch;
   }
 
-  .sidebar__search {
-    order: 2;
-  }
-
   .sidebar__nav {
-    order: 4;
+    order: 2;
     margin-inline: 0;
     padding-inline: 0;
     border: 0;
@@ -1817,6 +1881,15 @@ html[data-cursor='custom'] [contenteditable] {
     flex-direction: column;
     gap: 0;
     overflow: visible;
+  }
+
+  /*
+    En escritorio el indicador se traduce en vertical y su posición se mide
+    respecto a esta lista, que es el contenedor posicionado. Sin esto seguiría
+    anclándose al `li` equivocado.
+  */
+  .side-nav__list > li {
+    position: static;
   }
 
   .side-nav__link {
@@ -1836,11 +1909,52 @@ html[data-cursor='custom'] [contenteditable] {
   }
 
   .content {
+    position: relative;
     height: 100%;
     max-width: var(--content-max);
     padding: var(--content-pad) var(--content-pad) var(--sp-20);
     overflow-y: auto;
     scroll-padding-top: var(--sp-4);
+    /*
+      Barra propia en vez de la del navegador. Se ocultan las dos implementaciones
+      —la estandar y la de WebKit— porque `scrollbar-width: none` no basta en
+      Safari, y con las dos visibles habría dos indicadores.
+    */
+    scrollbar-width: none;
+  }
+
+  .content::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+    Indicador de scroll. Vive en el canalón de la derecha, dentro del padding
+    lateral del área de contenido, así que no cruza el texto y no hace falta
+    ponerla en un plano inferior: un `::after` posicionado se pinta siempre por
+    encima de los hijos que no lo están, y bajarlo con `z-index: -1` lo mandaría
+    detrás del fondo de la página. `pointer-events: none` porque en una barra de
+    desplazamiento no hay nada que pulsar.
+  */
+  .content::after {
+    content: '';
+    position: absolute;
+    top: var(--thumb-y, 0);
+    right: var(--thumb-inset, 8px);
+    width: 2px;
+    height: var(--thumb-h, 0);
+    border-radius: 1px;
+    background: var(--accent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--t-panel) var(--ease);
+  }
+
+  .content[data-thumb='true']::after {
+    opacity: 0.4;
+  }
+
+  .content:hover::after {
+    opacity: 0.75;
   }
 
   .section {

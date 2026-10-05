@@ -1,4 +1,4 @@
-import { useCallback, useState, type PointerEvent } from 'react'
+import { useCallback, useState, type CSSProperties, type PointerEvent } from 'react'
 import { useLanguage } from '../context/language-context'
 import type { DisplayCertificate, ProcessedCertificate } from '../types/certificate'
 import { hoursBarWidth, indexLabel } from '../utils/certificates'
@@ -36,7 +36,8 @@ export function CertificateEntry({
   const { certificate, dateLabel, hoursLabel } = item
 
   const [hovered, setHovered] = useState(false)
-  const [pointer, setPointer] = useState({ x: 0, y: 0 })
+  const [pointerY, setPointerY] = useState(0)
+  const [box, setBox] = useState<{ left: number; width: number } | null>(null)
 
   const canHover =
     typeof window !== 'undefined' &&
@@ -45,17 +46,33 @@ export function CertificateEntry({
   const hasPdf = certificate.pdfUrl !== ''
   const barWidth = hoursBarWidth(certificate.hours, maxHours)
 
+  /*
+    La caja de la entrada se mide una vez, al entrar. No en cada `pointermove`: eso
+    forzaría un `getBoundingClientRect` por fotograma, que es una lectura de
+    disposición en el bucle de eventos y lo ralentiza. Y no hace falta seguirla:
+    el contenido solo desplaza en vertical, así que el ancho y el lado izquierdo no
+    cambian mientras el puntero sigue dentro.
+  */
+  const onPointerEnter = useCallback((event: PointerEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    setBox({ left: rect.left, width: rect.width })
+    setHovered(true)
+  }, [])
+
   const onPointerMove = useCallback((event: PointerEvent<HTMLElement>) => {
-    setPointer({ x: event.clientX, y: event.clientY })
+    setPointerY(event.clientY)
   }, [])
 
   return (
     <article
       id={`entry-${certificate.id}`}
-      className={`entry${highlighted ? ' entry--highlighted' : ''}`}
-      // `data-cert-id` lo usa la trayectoria para encontrar la entrada destino.
+      className={`entry revelable revelable--item${highlighted ? ' entry--highlighted' : ''}`}
+      // `data-cert-id` lo usa el indice para encontrar la entrada destino.
       data-cert-id={certificate.id}
-      onPointerEnter={canHover ? () => setHovered(true) : undefined}
+      // El retardo del revelado escalonado sale de la posicion dentro de la
+      // seccion, y lo escribe el CSS a partir de esta variable.
+      style={{ '--enter-index': position } as CSSProperties}
+      onPointerEnter={canHover ? onPointerEnter : undefined}
       onPointerMove={canHover ? onPointerMove : undefined}
       onPointerLeave={canHover ? () => setHovered(false) : undefined}
     >
@@ -143,8 +160,9 @@ export function CertificateEntry({
         <PdfThumbnail
           url={certificate.pdfUrl}
           active={hovered}
-          pointerX={pointer.x}
-          pointerY={pointer.y}
+          entryLeft={box?.left ?? null}
+          entryWidth={box?.width ?? null}
+          pointerY={pointerY}
         />
       )}
     </article>

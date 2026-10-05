@@ -15,6 +15,10 @@ interface CertificateSectionBlockProps {
  *
  * Una seccion sin resultados no llega a pintarse: `buildSections` ya las
  * descarta, de modo que aqui no hace falta comprobar nada.
+ *
+ * La cabecera y las entradas se revelan por separado. Antes solo se revelaban las
+ * entradas, asi que el titulo aparecia de golpe mientras el contenido de debajo
+ * subia, y un cambio de seccion se leia a dos velocidades.
  */
 export function CertificateSectionBlock({
   section,
@@ -27,7 +31,7 @@ export function CertificateSectionBlock({
       className="section"
       aria-labelledby={`${section.id}-title`}
     >
-      <div className="section__head">
+      <div className="section__head revelable">
         <span className="section__index mono" aria-hidden="true">
           {section.number}
         </span>

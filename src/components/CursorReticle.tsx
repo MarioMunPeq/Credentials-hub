@@ -114,11 +114,22 @@ export function CursorReticle() {
   }, [])
 
   return (
+    /*
+      El escalado va en un envoltorio intermedio y no en la raíz. La raíz lleva el
+      `transform: translate3d()` que se escribe en cada `pointermove`, y la
+      propiedad `scale` se compone *después* de `transform` en el orden de la
+      especificación: puestas las dos en el mismo elemento, el escalado se
+      aplicaría antes de la traslación y el cursor se movería de sitio en vez de
+      crecer sobre el puntero. Con dos elementos, cada uno lleva una cosa.
+    */
     <div ref={reticleRef} className="cursor-reticle" aria-hidden="true">
-      <span className="cursor-reticle__corner cursor-reticle__corner--tl" />
-      <span className="cursor-reticle__corner cursor-reticle__corner--tr" />
-      <span className="cursor-reticle__corner cursor-reticle__corner--bl" />
-      <span className="cursor-reticle__corner cursor-reticle__corner--br" />
+      <span className="cursor-reticle__scale">
+        <span className="cursor-reticle__core" />
+        <span className="cursor-reticle__corner cursor-reticle__corner--tl" />
+        <span className="cursor-reticle__corner cursor-reticle__corner--tr" />
+        <span className="cursor-reticle__corner cursor-reticle__corner--bl" />
+        <span className="cursor-reticle__corner cursor-reticle__corner--br" />
+      </span>
     </div>
   )
 }

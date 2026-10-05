@@ -23,7 +23,7 @@ export function sectionId(category: string): string {
   return `section-${category}`
 }
 
-/** Ancla de la Trayectoria. */
+/** Ancla del indice de credenciales, que ocupa la seccion 01. */
 export const TRAJECTORY_ID = 'trajectory'
 
 /** Una seccion ya preparada para pintar. */
@@ -99,53 +99,6 @@ export function toDisplay(
 }
 
 /**
- * Normaliza texto para el buscador: sin mayusculas, sin acentos y sin signos.
- * Asi "redes neuronales" encuentra "Redes Neuronales" y "python" encuentra
- * "Python", con independencia del idioma de la interfaz.
- */
-export function normalizeSearchText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-/**
- * Texto sobre el que actua el buscador: titulo, entidad y etiquetas.
- *
- * Las etiquetas no se muestran en la interfaz, pero siguen siendo utiles como
- * indice de busqueda: "python" encuentra el bootcamp aunque el titulo no lo
- * mencione.
- *
- * No depende del idioma: los tres campos son datos, no traduccion.
- */
-function searchableText(certificate: ProcessedCertificate): string {
-  return normalizeSearchText(
-    [certificate.title, certificate.issuer, ...certificate.tags].join(' '),
-  )
-}
-
-/**
- * Filtra por la consulta del buscador.
- *
- * Cada palabra debe aparecer (AND), en cualquier campo. Asi "dam kotlin" acota
- * en lugar de devolver todo lo que mencione uno de los dos.
- */
-export function searchCertificates(
-  certificates: ProcessedCertificate[],
-  query: string,
-): ProcessedCertificate[] {
-  const terms = normalizeSearchText(query).split(/\s+/).filter(Boolean)
-  if (terms.length === 0) return certificates
-
-  return certificates.filter((certificate) => {
-    const haystack = searchableText(certificate)
-    return terms.every((term) => haystack.includes(term))
-  })
-}
-
-/**
  * Ordena por fecha y, a igualdad de fecha, por titulo para que el resultado
  * sea estable entre recargas. La copia evita mutar el array original.
  */
@@ -205,173 +158,6 @@ export function buildSections(
 }
 
 /** Un elemento ya situado en la linea de tiempo. */
-export interface TrajectoryPoint {
-  certificate: ProcessedCertificate
-  display: DisplayCertificate
-  /** Timestamp en ms de la fecha, para colocarlo en el eje. */
-  time: number
-  /** Posicion horizontal en porcentaje del dominio. */
-  left: number
-}
-
-/** Ancho del eje en pixeles, o fraccion si la caja no se ha medido aun. */
-export interface TrajectoryScale {
-  /** Extremos del dominio temporal. */
-  from: number
-  to: number
-  /** Ancho total del eje en px. */
-  width: number
-  /** Anos que aparecen bajo el eje, en orden. */
-  years: number[]
-  /** Posicion horizontal de cada inicio de año, en porcentaje. */
-  yearMarks: { year: number; left: number }[]
-  points: TrajectoryPoint[]
-  /** Suma de horas de todos los certificados, para la ficha en reposo. */
-  totalHours: number
-}
-
-/**
- * Diametro de un punto del eje. Fijo a proposito: antes era proporcional a la raiz
- * cuadrada de las horas, y no comunicaba nada. Nadie lee "450 h" en un circulo de
- * 40px, y un unico punto cuatro veces mayor que los demas rompe el ritmo de la
- * fila y parece un error de dibujo. Las horas ahora van escritas en la ficha.
- */
-export const DOT_SIZE = 11
-
-/**
- * Separacion minima entre puntos, en px.
- *
- * Los dos PRL de 2026 estan separados por 6 dias, que a 2400px de eje son 4px:
- * dos circulos de 11px superpuestos. Se separan al minimo y se dibuja una guia
- * entre la posicion real y la dibujada, para que el desplazamiento se vea y la
- * escala temporal no mienta.
- */
-export const DOT_GAP = 16
-
-/**
- * Posicion de un punto yajusted por la separacion minima.
- */
-export interface DotPlacement {
-  /** Posicion horizontal en px dentro del eje. */
-  left: number
-  /** Distancia en px entre lo dibujado y la posicion real por la fecha. */
-  shift: number
-}
-
-/**
- * Coloca los puntos del eje respetando una separacion minima.
- *
- * Dos pasadas: una de izquierda a derecha que empuja hacia adelante, y otra de
- * derecha a izquierda que recoge lo que se haya salido del borde. Con una sola
- * pasada, el ultimo punto de una pareja muy junta quedaria fuera del eje.
- */
-export function placeDots(
-  points: TrajectoryPoint[],
-  trackWidth: number,
-): Map<string, DotPlacement> {
-  const placements = new Map<string, DotPlacement>()
-  if (trackWidth <= 0) return placements
-
-  const half = DOT_SIZE / 2
-  const limit = trackWidth - half
-  const lefts = points.map((point) => (point.left / 100) * trackWidth)
-
-  for (let i = 1; i < lefts.length; i += 1) {
-    const previous = lefts[i - 1] ?? 0
-    lefts[i] = Math.max(lefts[i] ?? 0, previous + DOT_GAP)
-  }
-  for (let i = lefts.length - 1; i >= 0; i -= 1) {
-    const next = lefts[i + 1]
-    let value = Math.min(lefts[i] ?? 0, limit)
-    if (next !== undefined) value = Math.min(value, next - DOT_GAP)
-    lefts[i] = value
-  }
-
-  for (const [index, point] of points.entries()) {
-    const trueLeft = (point.left / 100) * trackWidth
-    const left = Math.max(half, lefts[index] ?? trueLeft)
-    placements.set(point.certificate.id, { left, shift: left - trueLeft })
-  }
-
-  return placements
-}
-
-/** Anchura minima del eje en movil, con scroll horizontal. */
-export const TRACK_MIN_WIDTH = 900
-
-/**
- * Timestamp de un certificado.
- *
- * Se construye en UTC a proposito: una fecha de certificado es una etiqueta y
- * no un instante, y parsearla como ISO la desplazaria un dia en zonas
- * horarias negativas.
- */
-export function certificateTime(certificate: ProcessedCertificate): number {
-  const { year, month, day } = certificate.dateParts
-  return Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1)
-}
-
-/** Posicion de `time` dentro de `[from, to]`, en porcentaje acotado. */
-function ratioOf(time: number, from: number, to: number): number {
-  if (to <= from) return 0
-  const ratio = ((time - from) / (to - from)) * 100
-  return Math.min(100, Math.max(0, ratio))
-}
-
-/**
- * Prepara la escala temporal de la trayectoria.
- *
- * El dominio va del 1 de enero del año más antiguo al 31 de diciembre del más
- * reciente, de modo que las posiciones respetan el tiempo real y no el orden
- * de los elementos. Todos los puntos tienen el mismo diametro: lo que se
- * dibuja es cuándo ocurrió cada cosa, y las horas van escritas en la ficha.
- */
-export function buildTrajectory(
-  certificates: ProcessedCertificate[],
-  language: Language,
-  width: number,
-): TrajectoryScale {
-  if (certificates.length === 0) {
-    return { from: 0, to: 1, width, years: [], yearMarks: [], points: [], totalHours: 0 }
-  }
-
-  const years = certificates.map((c) => c.dateParts.year ?? 1970)
-  const firstYear = Math.min(...years)
-  const lastYear = Math.max(...years)
-
-  // Se añade un año de margen a cada lado para que los nodos extremos no
-  // queden pegados al borde y su etiqueta no se recorte.
-  const from = Date.UTC(firstYear, 0, 1)
-  const to = Date.UTC(lastYear, 11, 31)
-
-  const sorted = sortByDateDesc(certificates, language).slice().sort((a, b) => a.sortKey - b.sortKey)
-  const totalHours = certificates.reduce((sum, c) => sum + c.hours, 0)
-
-  const points: TrajectoryPoint[] = sorted.map((certificate) => {
-    const time = certificateTime(certificate)
-
-    return {
-      certificate,
-      display: toDisplay(certificate, language),
-      time,
-      left: ratioOf(time, from, to),
-    }
-  })
-
-  const yearMarks: TrajectoryScale['yearMarks'] = []
-  for (let year = firstYear; year <= lastYear; year += 1) {
-    yearMarks.push({ year, left: ratioOf(Date.UTC(year, 0, 1), from, to) })
-  }
-
-  return { from, to, width, years: yearMarks.map((mark) => mark.year), yearMarks, points, totalHours }
-}
-
-/**
- * Porcentaje que ocupa la barra de horas de una entrada.
- *
- * También en raíz cuadrada, y con un suelo del 3% para que un certificado de
- * pocas horas siga teniendo una marca legible.
- */
 export function hoursBarWidth(hours: number, maxHours: number): number {
   if (hours <= 0 || maxHours <= 0) return 0
   return Math.max(3, Math.sqrt(hours / maxHours) * 100)
@@ -385,8 +171,9 @@ export function latestCertificateDate(certificates: ProcessedCertificate[]): Dat
   let latest: Date | null = null
 
   for (const certificate of certificates) {
-    if (certificate.dateParts.year === null) continue
-    const date = new Date(certificateTime(certificate))
+    const { year, month, day } = certificate.dateParts
+    if (year === null) continue
+    const date = new Date(Date.UTC(year, (month ?? 1) - 1, day ?? 1))
     if (!latest || date > latest) latest = date
   }
 

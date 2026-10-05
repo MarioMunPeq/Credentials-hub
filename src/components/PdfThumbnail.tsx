@@ -135,19 +135,33 @@ interface PdfThumbnailProps {
   url: string
   /** `true` mientras el puntero está sobre la entrada. */
   active: boolean
-  /** Coordenadas del puntero en el viewport, en px. */
-  pointerX: number
+  /** Lado izquierdo de la entrada en px de viewport, o `null` si se desconoce. */
+  entryLeft: number | null
+  /** Anchura de la entrada en px, o `null` si se desconoce. */
+  entryWidth: number | null
+  /** Coordenada vertical del puntero, en px. */
   pointerY: number
 }
 
 /**
- * Miniatura de la primera página, apoyada junto al puntero.
+ * Miniatura de la primera página, anclada a la entrada y no al puntero.
  *
- * Se posiciona en `position: fixed` a partir de la posición del ratón en vez de
- * quedar dentro de la entrada: así ningún `overflow` de contenedor la recorta y
- * siempre queda dentro del viewport.
+ * Se posiciona en `position: fixed` para que ningún `overflow` de contenedor la
+ * recorte, pero **horizontalmente se ancla a la entrada, no al ratón**. Con el
+ * puntero, a 500px de ancho la miniatura tapaba el texto de la columna de al
+ * lado y además se movía cada vez que el ratón cambiaba de píxel dentro de la
+ * entrada, que se lee como un parpadeo.
+ *
+ * Anclada a la entrada, el ancho se limita al de la propia columna: así es
+ * imposible que invada a la vecina, por grande que se ponga.
  */
-export function PdfThumbnail({ url, active, pointerX, pointerY }: PdfThumbnailProps) {
+export function PdfThumbnail({
+  url,
+  active,
+  entryLeft,
+  entryWidth,
+  pointerY,
+}: PdfThumbnailProps) {
   const [source, setSource] = useState<HTMLCanvasElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -190,24 +204,37 @@ export function PdfThumbnail({ url, active, pointerX, pointerY }: PdfThumbnailPr
   if (!active || !source) return null
 
   /*
-    El canvas siempre se renderiza a THUMB_WIDTH, pero en pantallas estrechas se
-    muestra más pequeño: a 500px fijos tapaba la página en móvil. El ancho de
-    presentación se calcula aquí, con lo que el placement de abajo puede usarlo
-    para no salirse del viewport.
+    El canvas siempre se renderiza a THUMB_WIDTH, pero el ancho de presentación se
+    calcula contra la entrada: si la columna es más estrecha que la miniatura, se
+    reduce hasta caber dentro. Con THUMB_WIDTH como tope y el ancho de la columna
+    como límite, la miniatura nunca puede invadir la columna vecina.
   */
-  const width = Math.max(THUMB_MIN_WIDTH, Math.min(THUMB_WIDTH, window.innerWidth - VIEWPORT_MARGIN * 6))
+  const gutter = VIEWPORT_MARGIN
+  const columnLimit =
+    entryWidth !== null ? Math.max(THUMB_MIN_WIDTH, entryWidth - gutter * 2) : THUMB_WIDTH
+  const width = Math.min(THUMB_WIDTH, columnLimit, window.innerWidth - gutter * 6)
   const height = Math.round((source.height / source.width) * width)
 
-  // Se ancla al borde derecho cuando el puntero está en la última mitad.
-  const flipped = pointerX > window.innerWidth - width - VIEWPORT_MARGIN * 3
-  const rawLeft = flipped ? pointerX - width - 20 : pointerX + 20
-  const left = Math.min(
-    Math.max(VIEWPORT_MARGIN, rawLeft),
-    window.innerWidth - width - VIEWPORT_MARGIN,
-  )
+  /*
+    Sin caja conocida se cae al puntero, que es lo que había antes. Solo pasa en el
+    primer fotograma, antes de que la entrada haya medido nada.
+  */
+  let left: number
+  if (entryLeft !== null && entryWidth !== null) {
+    left = entryLeft + gutter
+    // Si a la derecha se sale del viewport, se voltea dentro de la entrada.
+    if (left + width > window.innerWidth - gutter) {
+      left = Math.max(gutter, entryLeft + entryWidth - width - gutter)
+    }
+  } else {
+    left = Math.min(Math.max(gutter, 20), window.innerWidth - width - gutter)
+  }
 
-  // Si no cabe debajo del puntero, se coloca por encima.
-  const rawTop = pointerY + 20 + height > window.innerHeight - VIEWPORT_MARGIN ? pointerY - height - 20 : pointerY + 20
+  // Verticalmente sí sigue al puntero, y si no cabe debajo se coloca por encima.
+  const rawTop =
+    pointerY + 20 + height > window.innerHeight - VIEWPORT_MARGIN
+      ? pointerY - height - 20
+      : pointerY + 20
   const top = Math.max(VIEWPORT_MARGIN, rawTop)
 
   return (

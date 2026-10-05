@@ -30,17 +30,6 @@ const es = {
     themeDark: 'Modo oscuro',
   },
 
-  search: {
-    label: 'Buscar certificaciones',
-    placeholder: 'Buscar',
-    clear: 'Limpiar la búsqueda',
-    shortcut: '/',
-    results: (count: number, total: number) =>
-      count === total
-        ? `${count} ${count === 1 ? 'certificado' : 'certificados'}`
-        : `${count} de ${total}`,
-  },
-
   nav: {
     label: 'Secciones',
   },
@@ -55,7 +44,13 @@ const es = {
   },
 
   trajectory: {
-    title: 'Trayectoria',
+    title: 'Resumen',
+    /** Antetítulo que declara que esto resume el contenido de abajo. */
+    kicker: 'En una línea',
+    /** Frase que declara explícitamente que es un resumen de las secciones siguientes. */
+    summaryNote: 'Lo mismo que hay abajo, compacto y en orden. Cada ficha lleva a su entrada.',
+    /** Pista del índice, junto al contador. */
+    summaryHint: 'Pulsa una ficha para ir a su entrada',
     /** Etiqueta accesible del gráfico completo. */
     regionLabel: 'Línea de tiempo de certificaciones',
     nodeLabel: (title: string, issuer: string, meta: string) =>
@@ -70,8 +65,9 @@ const es = {
     hours: 'Horas',
     /** Etiqueta de la ficha en reposo, que resume el conjunto. */
     certificates: 'certificados',
-    summaryHint: 'Pasa el ratón por un punto del eje para ver el detalle.',
-    /** Enlace de la ficha hacia la entrada de la sección correspondiente. */
+    /** Resumen del índice de credenciales, en la cabecera. */
+    summary: (count: number, hours: string | null) =>
+      hours ? `${count} certificados · ${hours}` : `${count} certificados`,
     goToEntry: 'Ir a la ficha',
   },
 
@@ -110,9 +106,6 @@ const es = {
   },
 
   empty: {
-    filteredTitle: 'Ningún certificado coincide con la búsqueda',
-    filteredHint: 'Prueba con otras palabras.',
-    clearSearch: 'Limpiar la búsqueda',
     noDataTitle: 'Todavía no hay certificaciones',
     noDataHint: 'Añade el primer PDF en public/certs y su entrada en certificates.json.',
   },
@@ -137,17 +130,6 @@ const en: TranslationShape = {
     themeDark: 'Dark mode',
   },
 
-  search: {
-    label: 'Search certifications',
-    placeholder: 'Search',
-    clear: 'Clear search',
-    shortcut: '/',
-    results: (count: number, total: number) =>
-      count === total
-        ? `${count} ${count === 1 ? 'certificate' : 'certificates'}`
-        : `${count} of ${total}`,
-  },
-
   nav: {
     label: 'Sections',
   },
@@ -161,7 +143,11 @@ const en: TranslationShape = {
   },
 
   trajectory: {
-    title: 'Career path',
+    title: 'Overview',
+    kicker: 'On one line',
+    summaryNote:
+      'The same thing below, compact and in order. Every card links to its entry.',
+    summaryHint: 'Press a card to jump to its entry',
     regionLabel: 'Timeline of certifications',
     nodeLabel: (title: string, issuer: string, meta: string) =>
       `${title}, ${issuer}. ${meta}`,
@@ -172,7 +158,8 @@ const en: TranslationShape = {
       'This information is also available as a list in the sections below.',
     hours: 'Hours',
     certificates: 'certifications',
-    summaryHint: 'Hover a point on the axis to see the detail.',
+    summary: (count: number, hours: string | null) =>
+      hours ? `${count} certifications · ${hours}` : `${count} certifications`,
     goToEntry: 'Go to entry',
   },
 
@@ -208,9 +195,6 @@ const en: TranslationShape = {
   },
 
   empty: {
-    filteredTitle: 'No certificate matches your search',
-    filteredHint: 'Try different words.',
-    clearSearch: 'Clear search',
     noDataTitle: 'There are no certifications yet',
     noDataHint: 'Add the first PDF in public/certs and its entry in certificates.json.',
   },

@@ -50,29 +50,19 @@ export function LoadingState() {
   )
 }
 
-interface EmptyStateProps {
-  /** `true` cuando el listado se vacio por una busqueda, no por falta de datos. */
-  isFiltered: boolean
-  onClear: () => void
-}
-
-export function EmptyState({ isFiltered, onClear }: EmptyStateProps) {
+/**
+ * Estado sin certificaciones.
+ *
+ * Sin buscador ya no existe el caso de "nada coincide con lo que buscabas", así
+ * que solo queda el de lista vacía de verdad: el JSON carga pero no hay entradas.
+ */
+export function EmptyState() {
   const { t } = useLanguage()
 
   return (
     <div className="state container">
-      <h2 className="state__title">
-        {isFiltered ? t.empty.filteredTitle : t.empty.noDataTitle}
-      </h2>
-      <p className="state__text">{isFiltered ? t.empty.filteredHint : t.empty.noDataHint}</p>
-
-      {isFiltered && (
-        <p className="state__action">
-          <button type="button" className="link" onClick={onClear}>
-            {t.empty.clearSearch}
-          </button>
-        </p>
-      )}
+      <h2 className="state__title">{t.empty.noDataTitle}</h2>
+      <p className="state__text">{t.empty.noDataHint}</p>
     </div>
   )
 }

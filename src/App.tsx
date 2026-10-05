@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
-import { Trajectory } from './components/Trajectory'
+import { CredentialIndex } from './components/CredentialIndex'
 import { CertificateSectionBlock } from './components/CertificateSection'
 import { PdfModal } from './components/PdfModal'
 import { CursorReticle } from './components/CursorReticle'
 import { ErrorState, EmptyState, LoadingState } from './components/states'
 import { useCertificates } from './hooks/useCertificates'
+import { useScrollThumb } from './hooks/useScrollThumb'
+import { useRevealOnScroll } from './hooks/useRevealOnScroll'
 import { useLanguage } from './context/language-context'
 import { site } from './config/site'
-import {
-  buildSections,
-  searchCertificates,
-} from './utils/certificates'
+import { buildSections } from './utils/certificates'
 import type { ProcessedCertificate } from './types/certificate'
 
 /** Cuánto dura el resaltado de la entrada destino de la trayectoria. */
@@ -21,7 +20,6 @@ export function App() {
   const { language, t } = useLanguage()
   const { status, certificates, error, isFileProtocolError, retry } = useCertificates()
 
-  const [query, setQuery] = useState('')
   const [preview, setPreview] = useState<ProcessedCertificate | null>(null)
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
@@ -31,6 +29,11 @@ export function App() {
   // Área de contenido: es la que desplaza en escritorio, así que el scrollspy
   // necesita conocerla.
   const contentRef = useRef<HTMLElement>(null)
+
+  // Indicador de scroll propio: sustituye a la barra esmeralda del navegador.
+  useScrollThumb(contentRef)
+  // Las entradas de certificado aparecen cuando entran en pantalla.
+  useRevealOnScroll(contentRef)
 
   const closePreview = useCallback(() => {
     setPreview(null)
@@ -50,25 +53,15 @@ export function App() {
       ?.setAttribute('content', t.meta.description)
   }, [t])
 
-  const visible = useMemo(
-    () => searchCertificates(certificates, query),
-    [certificates, query],
-  )
-
   const sections = useMemo(
-    () => buildSections(visible, language),
-    [visible, language],
-  )
-
-  /** Secciones sin filtrar: permiten atenuar los ítems de navegación vacíos. */
-  const allSectionIds = useMemo(
-    () => buildSections(certificates, language).map((section) => section.id),
+    () => buildSections(certificates, language),
     [certificates, language],
   )
 
-  const visibleIds = useMemo(
-    () => new Set(visible.map((certificate) => certificate.id)),
-    [visible],
+  /** Secciones completas: permiten atenuar los ítems de navegación sin datos. */
+  const allSectionIds = useMemo(
+    () => sections.map((section) => section.id),
+    [sections],
   )
 
   const hasData = status === 'ready' && certificates.length > 0
@@ -81,31 +74,17 @@ export function App() {
   }, [])
 
   /*
-    Clic en un nodo de la trayectoria: lleva a la entrada y la resalta.
-    Si la entrada no existe porque la búsqueda la ocultó, se limpia la búsqueda
-    y se espera al siguiente render, cuando ya está en el DOM.
+    Clic en una ficha del resumen: lleva a la entrada y la resalta.
+    `buildSections` no filtra nada, así que la entrada siempre está en el DOM.
   */
-  const focusEntry = useCallback(
-    (certificate: ProcessedCertificate) => {
-      const scrollTo = () => {
-        const target = document.getElementById(`entry-${certificate.id}`)
-        target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const focusEntry = useCallback((certificate: ProcessedCertificate) => {
+    const target = document.getElementById(`entry-${certificate.id}`)
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
-        if (highlightTimer.current) clearTimeout(highlightTimer.current)
-        setHighlightedId(certificate.id)
-        highlightTimer.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_MS)
-      }
-
-      if (document.getElementById(`entry-${certificate.id}`)) {
-        scrollTo()
-        return
-      }
-
-      setQuery('')
-      requestAnimationFrame(scrollTo)
-    },
-    [],
-  )
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    setHighlightedId(certificate.id)
+    highlightTimer.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_MS)
+  }, [])
 
   // El temporizador de resaltado se limpia al desmontar.
   useEffect(
@@ -114,8 +93,6 @@ export function App() {
     },
     [],
   )
-
-  const resultLabel = t.search.results(visible.length, certificates.length)
 
   return (
     <div className="layout">
@@ -132,9 +109,6 @@ export function App() {
         sections={sections}
         allSectionIds={allSectionIds}
         certificates={certificates}
-        query={query}
-        onQueryChange={setQuery}
-        resultLabel={resultLabel}
         contentRef={contentRef}
         onJump={jumpTo}
       />
@@ -150,22 +124,10 @@ export function App() {
           />
         )}
 
-        {status === 'ready' && certificates.length === 0 && (
-          <EmptyState isFiltered={false} onClear={() => setQuery('')} />
-        )}
+        {status === 'ready' && certificates.length === 0 && <EmptyState />}
 
-        {hasData && visible.length === 0 && (
-          <EmptyState isFiltered onClear={() => setQuery('')} />
-        )}
-
-        {hasData && visible.length > 0 && (
+        {hasData && (
           <>
-            <Trajectory
-              certificates={certificates}
-              matchingIds={visibleIds}
-              onSelect={focusEntry}
-            />
-
             <div className="sections">
               {sections.map((section) => (
                 <CertificateSectionBlock
@@ -176,6 +138,12 @@ export function App() {
                 />
               ))}
             </div>
+
+            {/* El resumen va al final, no al principio. Es el mismo contenido que
+                las secciones de arriba, así que ponerlo delante hacía que el
+                visitante lo leyera dos veces y además leía el contenido en un
+                formato que no era el bueno. Al final se lee como el cierre. */}
+            <CredentialIndex certificates={certificates} onSelect={focusEntry} />
           </>
         )}
       </main>

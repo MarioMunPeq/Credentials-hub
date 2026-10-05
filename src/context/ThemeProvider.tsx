@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ThemeContext } from './theme-context'
 import { resolveInitialTheme, THEME_STORAGE_KEY, type Theme } from './preferences'
 
@@ -15,11 +15,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme])
 
-  const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === 'light' ? 'dark' : 'light'))
-  }, [])
-
-  const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, toggleTheme])
+  const value = useMemo(() => ({ theme, setTheme }), [theme])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
