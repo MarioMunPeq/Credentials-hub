@@ -1,7 +1,7 @@
 import { useLanguage } from '../context/language-context'
 
-interface ErrorStateProps {
-  message: string | null
+interface StatesProps {
+  errorMessage: string | null
   isFileProtocolError: boolean
   onRetry: () => void
 }
@@ -10,22 +10,31 @@ interface ErrorStateProps {
  * Estado de error al cargar el JSON.
  *
  * Se distingue el caso de abrir el sitio desde el disco, que es el error mas
- * habitual y el que mas confunde: la explicacion aparece en el propio sitio.
+ * habitual y el que mas confunde: la explicacion aparece en la propia pagina.
  */
-export function ErrorState({ message, isFileProtocolError, onRetry }: ErrorStateProps) {
+export function ErrorState({ errorMessage, isFileProtocolError, onRetry }: StatesProps) {
   const { t } = useLanguage()
 
+  const title = isFileProtocolError ? t.states.fileProtocolTitle : t.states.errorTitle
+  const detail = isFileProtocolError ? t.states.fileProtocolHint : (errorMessage ?? '')
+
   return (
-    <section className="state state--error container" role="alert">
-      <h2 className="state__title">
-        {isFileProtocolError ? t.states.fileProtocolTitle : t.states.errorTitle}
-      </h2>
-      <p className="state__text">
-        {isFileProtocolError ? t.states.fileProtocolHint : (message ?? t.states.errorHint)}
+    <section className="state container state--error" role="alert">
+      <h2 className="state__title">{title}</h2>
+      {isFileProtocolError ? (
+        <p className="state__text">{detail}</p>
+      ) : (
+        <>
+          <p className="state__text">{t.states.errorHint}</p>
+          {detail && <p className="state__meta mono">{detail}</p>}
+        </>
+      )}
+
+      <p className="state__action">
+        <button type="button" className="link" onClick={onRetry}>
+          {t.states.retry}
+        </button>
       </p>
-      <button type="button" className="button button--primary" onClick={onRetry}>
-        {t.states.retry}
-      </button>
     </section>
   )
 }
@@ -42,7 +51,7 @@ export function LoadingState() {
 }
 
 interface EmptyStateProps {
-  /** `true` cuando el listado esta vacio por filtros, no por falta de datos. */
+  /** `true` cuando el listado se vacio por una busqueda, no por falta de datos. */
   isFiltered: boolean
   onClear: () => void
 }
@@ -52,12 +61,17 @@ export function EmptyState({ isFiltered, onClear }: EmptyStateProps) {
 
   return (
     <div className="state container">
-      <h2 className="state__title">{isFiltered ? t.empty.title : t.empty.noDataTitle}</h2>
-      <p className="state__text">{isFiltered ? t.empty.hint : t.empty.noDataHint}</p>
+      <h2 className="state__title">
+        {isFiltered ? t.empty.filteredTitle : t.empty.noDataTitle}
+      </h2>
+      <p className="state__text">{isFiltered ? t.empty.filteredHint : t.empty.noDataHint}</p>
+
       {isFiltered && (
-        <button type="button" className="button button--primary" onClick={onClear}>
-          {t.empty.clearAll}
-        </button>
+        <p className="state__action">
+          <button type="button" className="link" onClick={onClear}>
+            {t.empty.clearSearch}
+          </button>
+        </p>
       )}
     </div>
   )

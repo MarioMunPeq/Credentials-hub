@@ -2,24 +2,23 @@ import { useLanguage } from '../context/language-context'
 import { LANGUAGES } from '../i18n/translations'
 
 /**
- * Selector de idioma con dos botones.
+ * Selector de idioma como dos textos, con subrayado en el activo.
  *
- * Se implementa como grupo de botones con `aria-pressed` en lugar de un
- * `<select>` para que el estado activo sea visible y accesible sin abrir un
- * desplegable del sistema.
+ * No es un segmented control con caja: el estado se marca con el subrayado y
+ * con el color del texto, que es justo lo que el usuario busca.
  */
 export function LanguageToggle() {
   const { language, setLanguage, t } = useLanguage()
 
   return (
-    <div className="lang-toggle" role="group" aria-label={t.header.toggleLanguage}>
+    <div className="lang" role="group" aria-label={t.header.language}>
       {LANGUAGES.map(({ code, short, label }) => (
         <button
           key={code}
           type="button"
-          className="lang-toggle__button"
-          aria-pressed={language === code}
+          className="lang__option"
           lang={code}
+          aria-pressed={language === code}
           title={label}
           onClick={() => setLanguage(code)}
         >

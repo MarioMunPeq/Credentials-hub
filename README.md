@@ -13,30 +13,113 @@ datos salen de un unico fichero JSON y los PDF se sirven tal cual desde la carpe
 
 ## Diseño
 
-Estilo dev/técnico con toque editorial minimalista. Sin sombras marcadas, sin
-degradados y sin nada de estética de videojuego.
+Dos paneles a pantalla completa, con la trayectoria como pieza protagonista.
+La tipografía y el espaciado hacen el trabajo y la decoración es casi
+inexistente: todo alineado a la izquierda, un único acento y nada de cajas
+alrededor del contenido.
+
+### Estructura
+
+**Escritorio (≥1024px).** Rejilla de dos columnas a `100dvh`:
+
+- **Izquierda:** barra lateral fija de `clamp(300px, 22vw, 420px)` con scroll
+  propio. De arriba abajo: nombre en Newsreader, rol, presentación, buscador,
+  navegación con números de índice y scrollspy, y al pie —anclado con
+  `margin-top: auto`— el desplegable de portfolios, el idioma, el tema y el pie.
+- **Derecha:** el área de contenido, con el ancho restante completo y
+  `padding: clamp(2rem, 4vw, 5rem)`. Es el **único elemento que desplaza**.
+
+**Móvil (<1024px).** La misma barra lateral se convierte en la cabecera
+superior: identidad a la izquierda, herramientas a la derecha, presentación
+debajo, navegación en fila con scroll horizontal y, en su propia fila, el
+buscador. El documento entero vuelve a hacer scroll normal.
+
+El bloque es un solo `<aside>` con dos disposiciones, no dos DOM: duplicarlo
+costaría más que un `order` y un mapa de áreas de grid.
+
+### Escala fluida
+
+```css
+html { font-size: clamp(16px, 0.35vw + 14px, 19px); }
+```
+
+A 360px queda en el suelo de 16px y en 1440px llega al tope de 19px. Todo lo
+que está en `rem` crece con ella, así que en 2560px el sitio se ve proporcional
+y no diminuto.   --content-max está alineado a la izquierda para que en pantallas ultraanchas
+  la composición se pegue al borde del área de contenido en vez de flotar en el
+  centro.
+
+### Rejilla técnica de fondo
+
+Líneas de 1px cada 48px y una marcada cada 240px, fijas detrás de todo, con
+`mask-image` radial que las desvanece hacia los bordes. Sin la atenuación la
+rejilla se lee como papel de cuadras y compite con el texto; con ella se percibe
+como textura. Los tonos (`3%` y `5%` en oscuro, `4%` y `6%` en claro) están por
+debajo del umbral en el que estorban al contraste del texto.
+
+### Trayectoria (sección 01)
+
+Línea de tiempo horizontal a **escala temporal real**: el dominio va del 1 de
+enero del año más antiguo al 31 de diciembre del más reciente, así que dos
+certificados de mayo y de septiembre están a la distancia que les corresponde.
+
+- **Nodos**: un círculo por certificado, con diámetro proporcional a la raíz
+  cuadrada de las horas (10–40px). El área es fiel al valor; un diámetro
+  proporcional achicaría las diferencias grandes. Anillo de 2px en el acento y
+  relleno del color del fondo; relleno sólido en hover, foco y activo.
+- **Etiquetas**: versión corta del título (campo `shortTitle` del JSON, o el
+  título recortado a 28 caracteres) y la fecha en mono. Se colocan en **carriles
+  verticales** —dos por encima del eje y dos por debajo— para que ninguna se
+  solape. Las colisiones se calculan en píxeles reales del eje, no en
+  porcentaje: dos puntos muy juntos en porcentaje pueden quedar muy lejos o muy
+  cerca según el ancho de pantalla.
+- **Clic**: lleva a la entrada correspondiente y la resalta con outline y fondo
+  de superficie que se desvanece en 1,6s. Si la búsqueda la ocultaba, primero
+  limpia la búsqueda.
+- **Móvil**: el eje conserva 900px de ancho dentro de un contenedor con scroll
+  horizontal y `scroll-snap`. Una pista «Desliza» desaparece tras el primer
+  desplazamiento.
+
+`scripts/check-trajectory.mjs` calcula la geometría con los datos reales y
+comprueba que no hay solapes ni etiquetas ocultas a 900, 1200, 1600, 2000 y
+2400px:
+
+```bash
+node scripts/check-trajectory.mjs
+```
+
+### Entradas
+
+Sin caja: hairline superior y padding vertical generoso. Cada una lleva su
+número de índice en mono y acento, el título en Inter 600, la entidad en gris,
+la línea de fecha y horas, una **barra de horas** proporcional a la raíz
+cuadrada respecto al máximo de la sección (con suelo del 3%), y las acciones
+como enlaces de texto.
+
+En dispositivos con ratón fino aparece una **miniatura de la primera página del
+PDF** junto al puntero. Se renderiza con `pdf.js` cargado de forma diferida: el
+import dinámico no está en el bundle inicial, y el worker se resuelve con
+`?url` de Vite para que se sirva como fichero propio. La primera página ya
+renderizada se cachea por URL, hay 250ms de retardo para que no parpadee al
+mover el ratón, y cualquier fallo se traga: la miniatura es un extra y la
+entrada tiene que seguir siendo utilizable sin ella.
+
+### Decisiones de sistema
 
 | Decisión | Cómo está resuelto |
 | --- | --- |
-| Modo oscuro por defecto | Paleta base oscura en `:root`; el modo claro va en `[data-theme='light']`. El script de `index.html` decide **antes del primer paint**, así que no hay destello al cargar. |
-| Respeta `prefers-color-scheme` | Si el sistema pide claro y el visitante no ha elegido nada, recibe claro. Después, la elección se guarda. |
-| Un solo acento | Verde esmeralda (`--accent`) para enlaces, botones y estados activos. No hay un segundo color de interfaz. |
-| Tipografías | **Inter** para texto y títulos. **JetBrains Mono** solo para fechas, horas, etiquetas y metadatos. |
-| Sin dependencias externas | Ambas fuentes se sirven desde el propio dominio (`@fontsource-variable`), no desde Google Fonts: el sitio funciona sin conexion a terceros y no filtra las visitas. |
-| 16 px de cuerpo | Regla explícita en `global.css`: la jerarquía se construye con peso, color y espaciado entre letras, nunca bajando el cuerpo. |
-| Máx. ~70 caracteres | `--measure: 68ch` en los bloques de texto. |
-| Bordes finos | Un único grosor de borde en todo el sitio. Sin `box-shadow` decorativo. |
-| Color por categoría | Un tono suave y distinto por familia (estudios, tecnología, idiomas, PRL, IA) que aparece **solo** en la etiqueta y en el punto de la línea de tiempo. Nunca en bordes ni fondos. |
-| Mobile first | Una columna en móvil, 2 desde 640 px y 3 desde 1024 px. |
-| Zonas táctiles | `--tap: 44px` como mínimo en botones, chips, selects y el conmutador de tema. |
-| Filtros en móvil | Filas con desplazamiento horizontal; en pantallas anchas pasan a varias filas y a dos columnas. |
-| Línea de tiempo | Eje vertical fijo a la izquierda, agrupada por año. |
-| Vista previa del PDF | A pantalla completa en móvil; diálogo centrado con borde desde 640 px. |
-| Animaciones | Solo transiciones cortas de color y opacidad. `prefers-reduced-motion` las desactiva todas. |
+| Modo oscuro por defecto | Paleta base en `:root`, claro en `[data-theme='light']`, aplicado antes del primer paint por el script de `index.html`. |
+| Respeta `prefers-color-scheme` | Solo si el visitante no ha elegido. La elección se guarda en `localStorage`, con `try/catch`. |
+| Un solo acento | `#56c3a0` en oscuro y `#1f8a6b` en claro. Índices, nodos, barra de horas, línea activa, enlaces y foco. Nunca como relleno de superficies ni de botones. |
+| Tipografías | **Newsreader** para el nombre y los títulos de sección. **Inter** para texto e interfaz. **JetBrains Mono** solo para fechas, horas, índices y metadatos, con `tabular-nums`. Las tres autoalojadas con `@fontsource`. |
+| Color por categoría | **No existe.** La familia la dice el título de la sección. |
+| Etiquetas del JSON | **No se muestran.** Solo sirven como índice del buscador. |
+| Zonas táctiles | 44px de alto en acciones, navegación e items del desplegable, con padding y sin tocar el tamaño de fuente. |
+| Movimiento | Transiciones de 130–140ms. Sin animaciones de entrada, sin parallax, sin escalados. `prefers-reduced-motion` las elimina. |
+| Foco | `outline: 2px` en el acento con `offset: 2px`, nunca eliminado. |
 
-Los colores, la tipografía, el ritmo y las medidas viven todos como variables
-CSS al principio de `src/styles/global.css`. Cambiar el aspecto no requiere
-tocar componentes.
+Los colores, la escala y el ritmo viven como variables al principio de
+`src/styles/global.css`. Cambiar el aspecto no requiere tocar componentes.
 
 ---
 
@@ -44,15 +127,14 @@ tocar componentes.
 
 Hay dos cosas que debes cambiar antes de subir el sitio:
 
-1. **`src/config/site.ts`** — tu nombre, tu rol, la frase de presentación y los
-   enlaces a tus otros portfolios. Ahora mismo son datos de ejemplo
-   (`Nombre Apellidos`, enlaces a `example.com`).
-2. **`public/data/certificates.json`** — sustituye los 5 certificados de ejemplo
-   por los tuyos.
+1. **`src/config/site.ts`** — tu nombre, tu rol y el párrafo del hero.
+2. **`src/config/links.ts`** — los portfolios y perfiles, con sus URLs y sus
+   descripciones en español e inglés.
 
 > **Aviso sobre datos personales:** antes de subir un PDF, tapa la información
-> identificativa que tenga (DNI/NIE, número de registro, dirección, teléfono,
-> firma o foto). Detalles en [Antes de subir un PDF](#antes-de-subir-un-pdf-tapar-datos-personales).
+> identificativa que tenga (DNI, número de registro, fecha de nacimiento). Ya
+> está hecho en los PDF de este repositorio; los detalles en
+> [Antes de subir un PDF](#antes-de-subir-un-pdf-tapar-datos-personales).
 
 ---
 
@@ -83,11 +165,10 @@ Coloca el fichero en `public/certs/<categoria>/`, usando `minúsculas`, sin
 espacios y con la extensión `.pdf`:
 
 ```
-public/certs/estudios/master-ingenieria-software.pdf
-public/certs/tecnologia/cloud-developer-associate.pdf
-public/certs/idiomas/ingles-b2.pdf
-public/certs/prl/recurso-preventivo-50h.pdf
-public/certs/ia/bootcamp-ia-aplicada.pdf
+public/certs/estudios/cfgs-desarrollo-aplicaciones-multiplataforma.pdf
+public/certs/idiomas/trinity-ise-ii-b2.pdf
+public/certs/ia/bootcamp-inteligencia-artificial.pdf
+public/certs/prl/prl-recurso-preventivo.pdf
 ```
 
 La carpeta no tiene que existir: créala si hace falta. Cualquier subcarpeta vale,
@@ -99,15 +180,14 @@ Edita `public/data/certificates.json` y añade un objeto más a la lista:
 
 ```json
 {
-  "id": "cloud-developer-associate",
-  "title": "Cloud Developer — Associate",
-  "issuer": "Plataforma Cloud de Ejemplo",
-  "date": "2024-03-15",
-  "hours": 70,
-  "category": "tecnologia",
-  "tags": ["cloud", "devops", "api"],
-  "pdf": "certs/tecnologia/cloud-developer-associate.pdf",
-  "verifyUrl": "https://example.com/verify/cloud-developer-associate"
+  "id": "prl-consultant",
+  "title": "Prevención de Riesgos Laborales — Puesto de Consultant",
+  "issuer": "ASPY Prevención",
+  "date": "2026-09-25",
+  "hours": 2,
+  "category": "prl",
+  "tags": ["prl", "artículo 19", "consultant", "prevención", "consulta"],
+  "pdf": "certs/prl/prl-recurso-preventivo.pdf"
 }
 ```
 
@@ -120,37 +200,40 @@ todo del JSON, así que basta con guardar los cambios y hacer `push`.
 | --- | --- | --- |
 | `id` | No* | Identificador único. Si falta, se genera uno a partir de la posición. Se usa como clave de React, así que **no lo repitas**. |
 | `title` | **Sí** | Nombre oficial del título o certificación. |
+| `shortTitle` | No | Versión corta para las etiquetas de la trayectoria. Admite un texto único (`"Bootcamp IA"`) o un objeto por idioma (`{ "es": "…", "en": "…" }`). Si no está, la web recorta `title` a 28 caracteres con elipsis. |
 | `issuer` | **Sí** | Entidad emisora: universidad, centro, empresa o certificadora. |
 | `date` | No | Fecha de emisión. Formatos: `"2025"`, `"2025-03"` o `"2025-03-14"`. Cuantos más campos, más precisa. |
-| `hours` | No | Duración en horas. Number o `null`. También acepta `"40"`. Si no lo indicas, el certificado no muestra horas. |
-| `category` | **Sí** | Clave de categoría (ver tabla siguiente). |
-| `tags` | No | Lista de etiquetas para buscar y filtrar. Se normalizan a minúsculas y se ordenan solas. |
-| `pdf` | No | Ruta del PDF **relativa a `public/`**, con `/` como separador. Si falta o no existe, el certificado aparece sin botones. |
-| `verifyUrl` | No | Enlace público de verificación. Si no lo pones, no se muestra el botón. |
+| `hours` | No | Duración en horas. Number o `null`. También acepta `"40"`. Si no lo indicas, no hay barra de horas ni línea de horas. |
+| `category` | **Sí** | Clave de sección (ver tabla siguiente). |
+| `tags` | No | Etiquetas de búsqueda. **No se muestran en la web**: solo sirven para que el buscador encuentre el certificado. Se normalizan a minúsculas y se ordenan solas. |
+| `pdf` | No | Ruta del PDF **relativa a `public/`**, con `/` como separador. Si falta o no existe, el certificado aparece sin botones ni miniatura. |
+| `verifyUrl` | No | Enlace público de verificación. Si no lo pones, no se muestra el enlace. |
 
 \* `id` es obligatorio en la práctica: sin él la web genera uno, pero con `id`
 explícito el enlace al certificado es estable.
 
-### Categorías
+### Secciones
 
-Las cinco de serie, con su carpeta y su color en la interfaz:
+La `category` decide en qué bloque aparece el certificado. El orden de los
+bloques es el de `SECTION_ORDER`:
 
-| `category` | Se muestra como | Carpeta |
+| `category` | Título de la sección (ES / EN) | Carpeta |
 | --- | --- | --- |
-| `estudios` | Estudios oficiales | `public/certs/estudios/` |
-| `tecnologia` | Tecnología | `public/certs/tecnologia/` |
-| `idiomas` | Idiomas | `public/certs/idiomas/` |
-| `prl` | PRL | `public/certs/prl/` |
-| `ia` | Bootcamp de IA | `public/certs/ia/` |
+| `estudios` | Estudios oficiales / Formal studies | `public/certs/estudios/` |
+| `ia` | Bootcamp de IA / AI bootcamp | `public/certs/ia/` |
+| `idiomas` | Idiomas / Languages | `public/certs/idiomas/` |
+| `prl` | PRL / Occupational safety | `public/certs/prl/` |
+| `tecnologia` | Tecnología / Technology | `public/certs/tecnologia/` |
 
-**Para añadir una categoría nueva** no hace falta tocar el código: usa una clave
-libre (`recursos-humanos`, `salud`, …). Aparecerá sola en los filtros, con el
-nombre capitalizado y un color neutro.
+**Una sección sin certificados no se muestra**: ni el título ni la navegación.
+Por eso `tecnologia` no aparece en la barra de herramientas hasta que haya
+algún certificado de esa familia.
 
-Si quieres que tenga un nombre propio y un color propio en los dos idiomas,
-añádela a `CATEGORY_ORDER`, `CATEGORY_LABELS` y `CATEGORY_ACCENT` en
-`src/utils/categories.ts`. El orden de `CATEGORY_ORDER` es el orden en que se
-muestran los filtros.
+**Para añadir una sección nueva** no hace falta tocar la lógica: usa una clave
+libre (`salud`, `voluntariado`, …) y aparecerá sola al final, con el nombre de
+la clave tal cual. Si quieres que tenga un título propio en los dos idiomas y
+una posición concreta, añádela a `SECTION_ORDER` y a `sections` en
+`src/i18n/translations.ts`.
 
 ### scripts/redact-certs.py
 
@@ -179,17 +262,18 @@ una imagen.
 
 ### PDF de ejemplo
 
-Mientras no tengas los documentos reales, puedes generar un PDF de muestra por
-cada entrada del JSON:
+Si necesitas un PDF de muestra para probar el sitio antes de tener los
+documentos reales, puedes generar uno por cada entrada del JSON:
 
 ```bash
-npm run certs:placeholder           # solo los que falten
-node scripts/generate-placeholder-pdfs.mjs --force   # regenera todos
+npm run certs:placeholder                              # solo los que falten
+node scripts/generate-placeholder-pdfs.mjs --force      # regenera todos
 ```
 
 Cada PDF lleva una banda superior de «documento de ejemplo» para que no se
 confunda con un certificado auténtico. **Cuando añadas documentos reales, no
-uses este script**: borra antes los PDF de ejemplo que quieras sustituir.
+uses este script**: los ficheros que genere se llaman como los que ya tengas y
+no los sobreescribirá, así que conviene borrar antes los de ejemplo.
 
 ---
 
@@ -270,10 +354,12 @@ verificación.
 
 | Quiero… | Dónde |
 | --- | --- |
-| Cambiar nombre, rol o enlaces a otros portfolios | `src/config/site.ts` |
+| Cambiar nombre, rol o el texto del hero | `src/config/site.ts` |
+| Cambiar portfolios, perfiles o sus descripciones | `src/config/links.ts` |
 | Cambiar textos de la interfaz | `src/i18n/translations.ts` (objetos `es` y `en`) |
-| Cambiar colores, tipografías o espaciados | `src/styles/global.css` (bloque `:root` y `[data-theme='light']`) |
-| Cambiar iconos | `src/components/icons.tsx` |
+| Cambiar colores, tipografías, escala o espaciado | `src/styles/global.css` (bloque `:root` y `[data-theme='light']`) |
+| Cambiar el orden de las secciones | `SECTION_ORDER` en `src/utils/certificates.ts` |
+| Cambiar los iconos | `src/components/icons.tsx` |
 
 El tema se guarda en `localStorage` (`credentials-hub:theme`). Si no hay elección
 guardada, se respeta `prefers-color-scheme` y, si el sistema no expresa
@@ -358,21 +444,27 @@ $env:SITE_BASE="/mi-repo/"; npm run build   # PowerShell en Windows
 │   ├── data/certificates.json     # ← todos los certificados viven aquí
 │   └── certs/<categoria>/*.pdf    # ← los PDF
 ├── scripts/
-│   └── generate-placeholder-pdfs.mjs
+│   ├── generate-placeholder-pdfs.mjs
+│   ├── check-trajectory.mjs        # geometría de la trayectoria, sin navegador
+│   ├── redact-certs.py             # censura los PDF y los renombra
+│   ├── inspect-certs.py            # vuelca el texto y avisa de datos sensibles
+│   ├── grid-overlay.py             # rejilla de coordenadas para medir cajas
+│   └── render-scans.py             # renderiza a PNG para revisar a ojo
 ├── src/
-│   ├── components/                # interfaz (tarjetas, línea de tiempo, modal…)
-│   ├── config/site.ts             # ← nombre, rol y enlaces a otros portfolios
-│   ├── context/                   # idioma y tema
-│   ├── data/loadCertificates.ts   # descarga, validación y normalización del JSON
-│   ├── hooks/
-│   ├── i18n/translations.ts       # textos ES/EN
-│   ├── types/certificate.ts       # forma de un certificado
-│   ├── utils/                     # fechas, categorías, búsqueda y ordenación
+│   ├── components/                 # interfaz (trayectoria, entradas, modal…)
+│   ├── config/site.ts              # ← nombre, rol y presentación
+│   ├── config/links.ts             # ← portfolios, perfiles y repositorio
+│   ├── context/                    # idioma y tema
+│   ├── data/loadCertificates.ts    # descarga, validación y normalización del JSON
+│   ├── hooks/                      # carga de datos y scrollspy
+│   ├── i18n/translations.ts        # textos ES/EN
+│   ├── types/certificate.ts        # forma de un certificado
+│   ├── utils/certificates.ts       # secciones, búsqueda y geometría
 │   ├── App.tsx
 │   ├── main.tsx
-│   └── styles/global.css          # ← colores, tipografías y espaciados
+│   └── styles/global.css           # ← tokens, escala, rejilla técnica y layout
 ├── index.html
-├── vite.config.ts                 # ← base path de GitHub Pages
+├── vite.config.ts                  # ← base path de GitHub Pages
 └── package.json
 ```
 
@@ -385,12 +477,19 @@ $env:SITE_BASE="/mi-repo/"; npm run build   # PowerShell en Windows
   los que no tienen `title`, `issuer` o `category` se descartan con un aviso en
   la consola, y el resto se muestra igual. Un `id` duplicado o ausente se
   corrige solo.
+- **Las secciones se derivan del JSON.** `buildSections` reparte los
+  certificados por `category`, les asigna el número de índice (la Trayectoria
+  ocupa la 01) y **descarta las que se quedan vacías**, así que una búsqueda
+  sin resultados oculta el bloque entero en lugar de dejar un título huérfano.
+  Añadir una categoría nueva no requiere tocar código.
+- **La trayectoria no se reescala al buscar.** El eje temporal va siempre del
+  año más antiguo al más reciente: filtrar atenúa los nodos que no coinciden
+  (`opacity: 0.25`) en lugar de redistribuir el eje, que haría saltar la
+  pieza principal bajo los dedos.
 - **Las fechas se ordenan por número, no por texto**, y se formatean con el
   idioma activo. Por eso cambiar de ES a EN no vuelve a descargar nada.
 - **El buscador ignora mayúsculas y acentos:** «redes neuronales» encuentra
-  «Redes Neuronales».
-- **Los filtros combinan así:** varias palabras clave se unen con *o*, y las
-  categorías y etiquetas con *y*.
+  «Redes Neuronales». Varias palabras se combinan con AND.
 - **Ninguna ruta empieza por `/`.** En el JSON, `pdf` es relativo a `public/`
   (`certs/...`); el prefijo de GitHub Pages se añade al construir la URL. Así
   el sitio funciona igual en local, en un subdirectorio y en la raíz del

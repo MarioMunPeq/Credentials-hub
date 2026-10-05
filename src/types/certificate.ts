@@ -38,6 +38,13 @@ export interface Certificate {
   pdf: string
   /** Enlace publico de verificacion. Opcional: si no existe, no se muestra. */
   verifyUrl?: string
+  /**
+   * Version corta del titulo, para las etiquetas de la trayectoria.
+   *
+   * Admite dos formas: un texto unico para los dos idiomas, o un objeto con
+   * una version por idioma. Opcional: si no esta, la web recorta el titulo.
+   */
+  shortTitle?: string | { es: string; en: string }
 }
 
 /**
@@ -64,12 +71,23 @@ export interface ProcessedCertificate {
   /** URL absoluta del PDF, respetando el `base` de GitHub Pages. */
   pdfUrl: string
   verifyUrl: string | null
+  /** Titulo corto por idioma, o `null` si el JSON no lo declara. */
+  shortTitle: { es: string; en: string } | null
 }
 
-/** Como se ordenan cronologicamente los certificados. */
-export type SortOrder = 'desc' | 'asc'
+/**
+ * Una certificacion con su version corta ya resuelta al idioma activo.
+ *
+ * Es lo que pintan la trayectoria y las entradas, para no tener que decidir el
+ * idioma en cada componente.
+ */
+export interface DisplayCertificate {
+  certificate: ProcessedCertificate
+  /** `shortTitle` del JSON, o el titulo recortado con elipsis. */
+  short: string
+  dateLabel: string
+  hoursLabel: string | null
+}
 
 /** Vista activa del listado. */
-export type ViewMode = 'cards' | 'timeline'
-
 export type CertificateStatus = 'loading' | 'ready' | 'error'

@@ -133,6 +133,20 @@ export function processCertificates(raw: unknown[]): ProcessedCertificate[] {
 
     const verifyUrl = asText(candidate.verifyUrl)
 
+    // `shortTitle` admite un texto unico o un objeto por idioma. Se normaliza
+    // aqui para que el resto del codigo no tenga que distinguir las dos formas.
+    let shortTitle: { es: string; en: string } | null = null
+    const rawShort = candidate.shortTitle
+    if (typeof rawShort === 'string' && rawShort.trim()) {
+      const value = rawShort.trim()
+      shortTitle = { es: value, en: value }
+    } else if (typeof rawShort === 'object' && rawShort !== null) {
+      const record = rawShort as Record<string, unknown>
+      const es = asText(record.es)
+      const en = asText(record.en)
+      if (es || en) shortTitle = { es: es || en, en: en || es }
+    }
+
     processed.push({
       id,
       title,
@@ -145,6 +159,7 @@ export function processCertificates(raw: unknown[]): ProcessedCertificate[] {
       tags,
       pdfUrl: resolveAssetUrl(asText(candidate.pdf)),
       verifyUrl: verifyUrl || null,
+      shortTitle,
     })
   })
 

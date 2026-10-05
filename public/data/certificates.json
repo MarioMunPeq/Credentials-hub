@@ -2,6 +2,7 @@
   {
     "id": "health-and-safety-during-teleworking",
     "title": "Health and Safety During Teleworking",
+    "shortTitle": { "es": "Safety & Telework", "en": "Safety & Telework" },
     "issuer": "ASPY Prevención",
     "date": "2026-10-01",
     "hours": 3,
@@ -12,6 +13,7 @@
   {
     "id": "prl-consultant",
     "title": "Prevención de Riesgos Laborales — Puesto de Consultant",
+    "shortTitle": { "es": "PRL · Consultant", "en": "PRL · Consultant" },
     "issuer": "ASPY Prevención",
     "date": "2026-09-25",
     "hours": 2,
@@ -22,6 +24,7 @@
   {
     "id": "bootcamp-desarrollo-soluciones-ia",
     "title": "Bootcamp en Desarrollo de Soluciones en Inteligencia Artificial",
+    "shortTitle": { "es": "Bootcamp IA", "en": "AI Bootcamp" },
     "issuer": "Qualentum · Vass University · UNIR",
     "date": "2025-03-20",
     "hours": 450,
@@ -41,6 +44,7 @@
   {
     "id": "trinity-ise-ii",
     "title": "Inglés — Trinity ISE II (B2)",
+    "shortTitle": { "es": "Inglés B2", "en": "English B2" },
     "issuer": "Trinity College London",
     "date": "2025-10",
     "hours": null,
@@ -51,6 +55,7 @@
   {
     "id": "cfgs-desarrollo-aplicaciones-multiplataforma",
     "title": "Técnico Superior en Desarrollo de Aplicaciones Multiplataforma",
+    "shortTitle": { "es": "Grado Superior DAM", "en": "Higher Degree DAM" },
     "issuer": "IES Julián Marías",
     "date": "2024-06-03",
     "hours": null,
@@ -68,6 +73,7 @@
   {
     "id": "cfgm-instalaciones-telecomunicaciones",
     "title": "Técnico en Instalaciones de Telecomunicaciones",
+    "shortTitle": { "es": "CFGM Telecomunicaciones", "en": "Vocational Telecom" },
     "issuer": "IES La Merced",
     "date": "2022-06-06",
     "hours": null,
@@ -78,6 +84,7 @@
   {
     "id": "titulo-graduado-eso",
     "title": "Título de Graduado en Educación Secundaria Obligatoria",
+    "shortTitle": { "es": "Graduado ESO", "en": "Secondary School" },
     "issuer": "Junta de Castilla y León",
     "date": "2018-11-16",
     "hours": null,

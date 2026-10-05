@@ -1,39 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Header } from './components/Header'
-import { Intro } from './components/Intro'
-import { SummaryStats } from './components/SummaryStats'
-import { SearchBar } from './components/SearchBar'
-import { FilterPanel } from './components/FilterPanel'
-import { ViewControls } from './components/ViewControls'
-import { CertificateCard } from './components/CertificateCard'
-import { Timeline } from './components/Timeline'
+import { Sidebar } from './components/Sidebar'
+import { Trajectory } from './components/Trajectory'
+import { CertificateSectionBlock } from './components/CertificateSection'
 import { PdfModal } from './components/PdfModal'
-import { Footer } from './components/Footer'
 import { ErrorState, EmptyState, LoadingState } from './components/states'
 import { useCertificates } from './hooks/useCertificates'
 import { useLanguage } from './context/language-context'
 import { site } from './config/site'
 import {
-  collectTags,
-  countByCategory,
-  EMPTY_FILTERS,
-  filterCertificates,
-  hasActiveFilters,
-  sortCertificates,
-  type Filters,
+  buildSections,
+  searchCertificates,
 } from './utils/certificates'
-import type { ProcessedCertificate, SortOrder, ViewMode } from './types/certificate'
+import type { ProcessedCertificate } from './types/certificate'
+
+/** Cuánto dura el resaltado de la entrada destino de la trayectoria. */
+const HIGHLIGHT_MS = 1600
 
 export function App() {
   const { language, t } = useLanguage()
   const { status, certificates, error, isFileProtocolError, retry } = useCertificates()
 
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
-  const [view, setView] = useState<ViewMode>('cards')
-  const [sort, setSort] = useState<SortOrder>('desc')
+  const [query, setQuery] = useState('')
   const [preview, setPreview] = useState<ProcessedCertificate | null>(null)
+  const [highlightedId, setHighlightedId] = useState<string | null>(null)
 
-  // Elemento que abrio el modal, para devolverle el foco al cerrarlo.
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Elemento que abrió el modal, para devolverle el foco al cerrarlo.
   const previewTriggerRef = useRef<HTMLElement | null>(null)
 
   const closePreview = useCallback(() => {
@@ -46,110 +38,140 @@ export function App() {
     setPreview(certificate)
   }, [])
 
-  // El titulo del navegador sigue al idioma activo.
+  // Título y descripción del documento siguen al idioma activo.
   useEffect(() => {
-    document.title = `${site.name} · ${t.meta.title}`
-    const meta = document.querySelector('meta[name="description"]')
-    if (meta) meta.setAttribute('content', t.meta.description)
+    document.title = `${site.name} — ${t.meta.title}`
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute('content', t.meta.description)
   }, [t])
 
-  const categories = useMemo(() => countByCategory(certificates), [certificates])
-  const tags = useMemo(() => collectTags(certificates), [certificates])
-
   const visible = useMemo(
-    () => sortCertificates(filterCertificates(certificates, filters, language), sort, language),
-    [certificates, filters, language, sort],
+    () => searchCertificates(certificates, query),
+    [certificates, query],
   )
 
-  const toggleIn = (list: string[], value: string) =>
-    list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
+  const sections = useMemo(
+    () => buildSections(visible, language),
+    [visible, language],
+  )
 
-  const setQuery = (query: string) => setFilters((current) => ({ ...current, query }))
-  const toggleCategory = (value: string) =>
-    setFilters((current) => ({ ...current, categories: toggleIn(current.categories, value) }))
-  const toggleTag = (value: string) =>
-    setFilters((current) => ({ ...current, tags: toggleIn(current.tags, value) }))
-  const clearFilters = () => setFilters(EMPTY_FILTERS)
+  /** Secciones sin filtrar: permiten atenuar los ítems de navegación vacíos. */
+  const allSectionIds = useMemo(
+    () => buildSections(certificates, language).map((section) => section.id),
+    [certificates, language],
+  )
 
-  const resultLabel = t.toolbar.resultCount(visible.length, certificates.length)
-  const filtersActive = hasActiveFilters(filters)
+  const visibleIds = useMemo(
+    () => new Set(visible.map((certificate) => certificate.id)),
+    [visible],
+  )
+
+  const hasData = status === 'ready' && certificates.length > 0
+
+  /** Salta a una sección compensando el borde fijo del área de contenido. */
+  const jumpTo = useCallback((id: string) => {
+    const target = document.getElementById(id)
+    if (!target) return
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  /*
+    Clic en un nodo de la trayectoria: lleva a la entrada y la resalta.
+    Si la entrada no existe porque la búsqueda la ocultó, se limpia la búsqueda
+    y se espera al siguiente render, cuando ya está en el DOM.
+  */
+  const focusEntry = useCallback(
+    (certificate: ProcessedCertificate) => {
+      const scrollTo = () => {
+        const target = document.getElementById(`entry-${certificate.id}`)
+        target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+        if (highlightTimer.current) clearTimeout(highlightTimer.current)
+        setHighlightedId(certificate.id)
+        highlightTimer.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_MS)
+      }
+
+      if (document.getElementById(`entry-${certificate.id}`)) {
+        scrollTo()
+        return
+      }
+
+      setQuery('')
+      requestAnimationFrame(scrollTo)
+    },
+    [],
+  )
+
+  // El temporizador de resaltado se limpia al desmontar.
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    },
+    [],
+  )
+
+  const resultLabel = t.search.results(visible.length, certificates.length)
 
   return (
-    <div className="app">
-      <a className="skip-link" href="#certificados">
+    <div className="layout">
+      {/* Rejilla técnica fija detrás de todo. No interactúa con el ratón. */}
+      <div className="tech-grid" aria-hidden="true" />
+
+      <a className="skip-link" href="#contenido">
         {t.header.skipToContent}
       </a>
 
-      <Header />
-      <Intro />
+      <Sidebar
+        sections={sections}
+        allSectionIds={allSectionIds}
+        certificates={certificates}
+        query={query}
+        onQueryChange={setQuery}
+        resultLabel={resultLabel}
+        onJump={jumpTo}
+      />
 
-      <main id="certificados" className="app__main container">
-        <SummaryStats certificates={certificates} />
-
-        {/*
-          La barra de herramientas solo aparece si hay algo que filtrar: un
-          buscador y un selector de vista sobre una lista vacia son ruido.
-        */}
-        {status === 'ready' && certificates.length > 0 && (
-          <section className="toolbar" aria-label={t.toolbar.filters}>
-            <div className="toolbar__top">
-              <SearchBar value={filters.query} onChange={setQuery} resultLabel={resultLabel} />
-              <ViewControls view={view} onViewChange={setView} sort={sort} onSortChange={setSort} />
-            </div>
-
-            <FilterPanel
-              categories={categories.map(([value, count]) => ({ value, count }))}
-              tags={tags}
-              selectedCategories={filters.categories}
-              selectedTags={filters.tags}
-              onToggleCategory={toggleCategory}
-              onToggleTag={toggleTag}
-              onClearCategories={() => setFilters((current) => ({ ...current, categories: [] }))}
-              onClearTags={() => setFilters((current) => ({ ...current, tags: [] }))}
-            />
-
-            <div className="toolbar__status">
-              <span className="toolbar__count">{resultLabel}</span>
-              {filtersActive && (
-                <button type="button" className="button button--ghost" onClick={clearFilters}>
-                  {t.toolbar.clearFilters}
-                </button>
-              )}
-            </div>
-          </section>
-        )}
-
+      <main id="contenido" className="content">
         {status === 'loading' && <LoadingState />}
 
         {status === 'error' && (
           <ErrorState
-            message={error}
+            errorMessage={error}
             isFileProtocolError={isFileProtocolError}
             onRetry={retry}
           />
         )}
 
-        {status === 'ready' &&
-          (certificates.length === 0 ? (
-            <EmptyState isFiltered={false} onClear={clearFilters} />
-          ) : visible.length === 0 ? (
-            <EmptyState isFiltered onClear={clearFilters} />
-          ) : view === 'cards' ? (
-            <div className="grid">
-              {visible.map((certificate) => (
-                <CertificateCard
-                  key={certificate.id}
-                  certificate={certificate}
+        {status === 'ready' && certificates.length === 0 && (
+          <EmptyState isFiltered={false} onClear={() => setQuery('')} />
+        )}
+
+        {hasData && visible.length === 0 && (
+          <EmptyState isFiltered onClear={() => setQuery('')} />
+        )}
+
+        {hasData && visible.length > 0 && (
+          <>
+            <Trajectory
+              certificates={certificates}
+              matchingIds={visibleIds}
+              onSelect={focusEntry}
+            />
+
+            <div className="sections">
+              {sections.map((section) => (
+                <CertificateSectionBlock
+                  key={section.category}
+                  section={section}
                   onPreview={openPreview}
+                  highlightedId={highlightedId}
                 />
               ))}
             </div>
-          ) : (
-            <Timeline certificates={visible} onPreview={openPreview} />
-          ))}
+          </>
+        )}
       </main>
-
-      <Footer />
 
       <PdfModal certificate={preview} onClose={closePreview} />
     </div>
