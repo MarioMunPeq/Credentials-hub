@@ -2,7 +2,7 @@ import { useCallback, useState, type PointerEvent } from 'react'
 import { useLanguage } from '../context/language-context'
 import type { DisplayCertificate, ProcessedCertificate } from '../types/certificate'
 import { hoursBarWidth, indexLabel } from '../utils/certificates'
-import { ExternalLinkIcon } from './icons'
+import { DownloadIcon, ExternalLinkIcon } from './icons'
 import { PdfThumbnail } from './PdfThumbnail'
 
 interface CertificateEntryProps {
@@ -63,7 +63,29 @@ export function CertificateEntry({
         {indexLabel(position + 1)}
       </span>
 
-      <h3 className="entry__title">{certificate.title}</h3>
+      {/*
+        El título es lo que abre el PDF. Antes había un enlace «Ver» suelto en la
+        fila de acciones que comp competía con «Descargar» por la atención, y
+        además obligaba a repetir en una acción lo que el título ya dice: que
+        este documento existe y se puede consultar.
+
+        Sin PDF el título se queda como texto plano: un botón que no hace nada es
+        peor que no tener botón.
+      */}
+      <h3 className="entry__title">
+        {hasPdf ? (
+          <button
+            type="button"
+            className="entry__title-link"
+            aria-haspopup="dialog"
+            onClick={() => onPreview(certificate)}
+          >
+            {certificate.title}
+          </button>
+        ) : (
+          certificate.title
+        )}
+      </h3>
       <p className="entry__issuer">{certificate.issuer}</p>
 
       {/* La fecha siempre aparece; las horas solo si el documento las declara. */}
@@ -88,50 +110,32 @@ export function CertificateEntry({
 
       <div className="entry__actions actions">
         {hasPdf && (
-          <>
-            <button
-              type="button"
-              className="actions__link link"
-              onClick={() => onPreview(certificate)}
-            >
-              {t.entry.view}
-            </button>
-            <span className="actions__sep" aria-hidden="true">
-              ·
-            </span>
-            <a
-              className="actions__link link"
-              href={certificate.pdfUrl}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t.entry.openPdfTitle}
-            >
-              {t.entry.download}
-            </a>
-          </>
+          <a
+            className="actions__download"
+            href={certificate.pdfUrl}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t.entry.downloadTitle}
+            title={t.entry.downloadTitle}
+          >
+            <DownloadIcon />
+          </a>
         )}
 
         {!hasPdf && <span className="entry__note">{t.entry.missingPdf}</span>}
 
         {certificate.verifyUrl && (
-          <>
-            {hasPdf && (
-              <span className="actions__sep" aria-hidden="true">
-                ·
-              </span>
-            )}
-            <a
-              className="actions__link link"
-              href={certificate.verifyUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              title={t.entry.verifyTitle}
-            >
-              {t.entry.verify}
-              <ExternalLinkIcon />
-            </a>
-          </>
+          <a
+            className="actions__link link"
+            href={certificate.verifyUrl}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            title={t.entry.verifyTitle}
+          >
+            {t.entry.verify}
+            <ExternalLinkIcon />
+          </a>
         )}
       </div>
 

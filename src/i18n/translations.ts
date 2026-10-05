@@ -76,11 +76,11 @@ const es = {
   },
 
   entry: {
-    view: 'Ver',
     download: 'Descargar',
+    /** Nombre accesible del botón de descarga, que ya no lleva texto visible. */
+    downloadTitle: 'Descargar el PDF',
     verify: 'Verificar',
     verifyTitle: 'Abrir la página oficial de verificación',
-    openPdfTitle: 'Abrir el PDF en una pestaña nueva',
     missingPdf: 'PDF no disponible',
     /** Texto alternativo de la miniatura flotante. */
     thumbnailAlt: (title: string) => `Primera página de ${title}`,
@@ -177,11 +177,10 @@ const en: TranslationShape = {
   },
 
   entry: {
-    view: 'View',
     download: 'Download',
+    downloadTitle: 'Download the PDF',
     verify: 'Verify',
     verifyTitle: 'Open the official verification page',
-    openPdfTitle: 'Open the PDF in a new tab',
     missingPdf: 'PDF not available',
     thumbnailAlt: (title: string) => `First page of ${title}`,
   },
